@@ -4,13 +4,14 @@ pi = np.pi
 from scipy.special import sici
 
 from ..nuclei import load_reference_nucleus, nucleus
+from .data_prepper import load_dataset
 
 from .parameters import ai_abs_bounds_default
 from .pickler import pickle_load_all_results_dicts_R
 
 class initializer():
     
-    def __init__(self,Z:int,A:int,R:float,N:int,ai=None,ai_abs_bound=None,initialize_from='reference'): #check_other_fits=False,settings={}
+    def __init__(self,Z:int,A:int,R:float,N:int,datasets:dict=None,ai=None,ai_abs_bound=None,initialize_from='reference'): #check_other_fits=False,settings={}
         
         self.Z = Z
         self.A = A
@@ -61,7 +62,23 @@ class initializer():
         self.overwrite_aN_from_total_charge_if_sensible()
         
         self.nucleus = nucleus(name="initialized_nucleus_Z"+str(self.Z)+"_A"+str(self.A),Z=self.Z,A=self.A,ai=self.ai,R=self.R)
-    
+
+        #initialize luminosities in datasets if needed
+        self.luminosities = np.array([])
+
+        for data_name in datasets:
+            if datasets[data_name].get('fit_luminosities','n')=='y':
+                if 'luminosities' not in datasets[data_name]:
+                    datasets[data_name]['luminosities']={}
+                dataset,_,_=load_dataset(data_name,Z,A,verbose=False)
+                for energy in np.unique(dataset[:,0]):
+                    if energy not in datasets[data_name]['luminosities']:
+                        datasets[data_name]['luminosities'][energy]=1.0
+                        print('Warning: Luminosity not given for dataset',data_name,'at energy',energy)
+                        print('Initializing luminosity to',datasets[data_name]['luminosities'][energy])
+                    self.luminosities=np.append(self.luminosities,datasets[data_name]['luminosities'][energy])
+
+
     def set_ai_from_reference(self):
         
         nuclei_references = load_reference_nucleus(self.Z,self.A)

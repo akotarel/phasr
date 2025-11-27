@@ -3,7 +3,7 @@ pi = np.pi
 
 class parameter_set():
     
-    def __init__(self,R:float,total_charge:float,ai=None,ai_abs_bound=None,xi=None):
+    def __init__(self,R:float,total_charge:float,ai=None,ai_abs_bound=None,xi=None,luminosities=None):
         
         self.R = R 
         self.total_charge = total_charge
@@ -19,6 +19,9 @@ class parameter_set():
             self.N_x = self.N_a - 1
         else:
             raise ValueError("Need to supply either ai or xi!") 
+        
+        if luminosities is not None:
+            self.luminosities = luminosities
         
         self.ni = np.arange(1,self.N_a+1)
         self.qi=np.arange(1,self.N_a+1)*pi/self.R
@@ -109,6 +112,8 @@ class parameter_set():
     def get_cov_ai(self):
         return self.cov_ai
     
+    def get_params(self):
+        return np.concatenate((self.xi,self.luminosities)) if hasattr(self,'luminosities') else self.xi
 
 def ai_tilde_implied_bounds(j,ai_tilde,ai_abs_bound,qi,N_a,R,total_charge):
     

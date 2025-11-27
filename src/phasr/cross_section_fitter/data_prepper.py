@@ -16,7 +16,7 @@ from .pickler import load_best_fit
 #from ..nuclei import load_reference_nucleus
 from .. import nucleus
 
-def import_dataset(path:str,save_name:str,Z:int,A:int,correlation_stat_uncertainty=None,correlation_syst_uncertainty=None,**args):
+def import_dataset(path:str,save_name:str,Z:int,A:int,correlation_stat_uncertainty=None,correlation_syst_uncertainty=None,fit_luminosity='n',**args):
     
     with open( path, "rb" ) as file:
         cross_section_dataset_input = np.loadtxt( file , **args )
@@ -49,7 +49,6 @@ def import_dataset(path:str,save_name:str,Z:int,A:int,correlation_stat_uncertain
     
     # Collect cross section
 
-    fit_luminosity = input("Do the cross sections need to be fitted with a free luminosity parameter for each energy? (y or n)")
 
     if fit_luminosity == 'y':
         rate_col = int(input("What column (starting at 0) contains the central values for the cross section*luminosity?"))
@@ -301,31 +300,31 @@ def import_dataset(path:str,save_name:str,Z:int,A:int,correlation_stat_uncertain
     #cross_section_dataset_for_fit = data_sorter(cross_section_dataset_for_fit,(0,1))
     
     dataset_name = save_name + "_Z"+str(Z) + "_A"+str(A)
-    if fit_luminosity == 'y':
-        data_type="reaction_rate_"
-    elif fit_luminosity == 'n':
-        data_type="cross_section_"
-    save_path_cross_section = local_paths.cross_section_data_path + data_type + dataset_name + ".txt"
-    save_path_cross_section_correlation_stat = local_paths.cross_section_data_path + data_type + dataset_name + "_correlation_stat.txt"
-    save_path_cross_section_correlation_syst = local_paths.cross_section_data_path + data_type + dataset_name + "_correlation_syst.txt"
+    
+    save_path_cross_section = local_paths.cross_section_data_path + 'scattering_data_' + dataset_name + ".txt"
+    save_path_cross_section_correlation_stat = local_paths.cross_section_data_path + 'scattering_data_' + dataset_name + "_correlation_stat.txt"
+    save_path_cross_section_correlation_syst = local_paths.cross_section_data_path + 'scattering_data_' + dataset_name + "_correlation_syst.txt"
 
     
     os.makedirs(os.path.dirname(save_path_cross_section), exist_ok=True)
     
+    # header: choose label for the central-value column depending on fit_luminosity
+    central_label = "reaction_rate(1/s)" if fit_luminosity == 'y' else "cross_section(fmsq)"
+    header = f"energy(MeV) angle(rad) {central_label} statistical_error systematic_error"
     with open(save_path_cross_section, "wb" ) as file:
-        np.savetxt(file,cross_section_dataset_for_fit)
-        print(data_type+"data saved in ", save_path_cross_section)
+        # np.savetxt will prefix the header with the comment string (default '# ')
+        np.savetxt(file, cross_section_dataset_for_fit, header=header, comments='# ', fmt='%.8e')
+        print("scattering data saved in ", save_path_cross_section)
     
     with open(save_path_cross_section_correlation_stat, "wb" ) as file:
         np.savetxt(file,cross_section_correlation_stat_data)
-        print(data_type+"statistical correlation data saved in ", save_path_cross_section_correlation_stat)
+        print("scattering statistical correlation data saved in ", save_path_cross_section_correlation_stat)
     
     with open(save_path_cross_section_correlation_syst, "wb" ) as file:
         np.savetxt(file,cross_section_correlation_syst_data)
-        print(data_type+"systematical correlation data saved in ", save_path_cross_section_correlation_syst)
+        print("scattering systematical correlation data saved in ", save_path_cross_section_correlation_syst)
     
     print("The dataset "+dataset_name+" can now be accessed by the fitting routines")
-    return data_type
 
 def list_datasets(Z,A):
     path_beginning = local_paths.cross_section_data_path + "cross_section_"
@@ -336,25 +335,27 @@ def list_datasets(Z,A):
     print("These loaded datasets were found for Z="+str(Z)+" and A="+str(A)+":")
     print(existing_datasets)
 
-def load_dataset(name,Z,A,data_type,verbose=True):
-    
+def load_dataset(name,Z,A,verbose=True):
+    data_type ='scattering_data_'
+        
     dataset_name = name + "_Z"+str(Z) + "_A"+str(A)
     save_path_cross_section = local_paths.cross_section_data_path + data_type + dataset_name + ".txt"
     save_path_cross_section_correlation_stat = local_paths.cross_section_data_path + data_type + dataset_name + "_correlation_stat.txt"
     save_path_cross_section_correlation_syst = local_paths.cross_section_data_path + data_type + dataset_name + "_correlation_syst.txt"
     
+    # ignore the header line (starting with '#') if present
     with open(save_path_cross_section, "rb" ) as file:
-        cross_section_dataset_for_fit = np.loadtxt(file, dtype=float)
+        cross_section_dataset_for_fit = np.loadtxt(file, dtype=float, comments='#')
         if verbose:
             print("cross section data loaded from ", save_path_cross_section)
     
     with open(save_path_cross_section_correlation_stat, "rb" ) as file:
-        cross_section_correlation_stat_data = np.loadtxt(file, dtype=float)
+        cross_section_correlation_stat_data = np.loadtxt(file, dtype=float, comments='#')
         if verbose:
             print("cross section statistical correlation data loaded from ", save_path_cross_section_correlation_stat)
     
     with open(save_path_cross_section_correlation_syst, "rb" ) as file:
-        cross_section_correlation_syst_data = np.loadtxt(file, dtype=float)
+        cross_section_correlation_syst_data = np.loadtxt(file, dtype=float, comments='#')
         if verbose:
             print("cross section systematical correlation data loaded from ", save_path_cross_section_correlation_syst)
     

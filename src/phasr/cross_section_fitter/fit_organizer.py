@@ -98,14 +98,14 @@ def parallel_fitting_manual(datasets_keys:list,Z:int,A:int,RN_tuples=[],redo_N=F
         
     return results_dict
 
-def parallel_fitting_automatic(datasets_keys:list,Z:int,A:int,Rs=np.arange(5.00,12.00,0.25),N_base_offset=0,N_base_span=2,redo_N=False,redo_aggressive=False,N_processes=cpu_count()-2,**args):
+def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00,0.25),N_base_offset=0,N_base_span=2,redo_N=False,redo_aggressive=False,N_processes=cpu_count()-2,**args):
     
     results={}
     
     if MPSentinel.Is_master():    
         q_max=0
-        for dataset_key in datasets_keys:
-            dataset, _, _ = load_dataset(dataset_key,Z,A,verbose=False) 
+        for data_name in datasets:
+            dataset, _, _ = load_dataset(data_name,Z,A,verbose=False) 
             energy = dataset[:,0]
             theta = dataset[:,1]
             q_mom_approx = 2*energy/constants.hc*np.sin(theta/2)
@@ -120,7 +120,7 @@ def parallel_fitting_automatic(datasets_keys:list,Z:int,A:int,Rs=np.arange(5.00,
             N=np.int64(Ns[i])
             for N_offset in np.arange(N-N_base_span,N+N_base_span+1,1,dtype=int):
                 if N_offset>2:
-                    pairings.append((datasets_keys,Z,A,R,N_offset,args))
+                    pairings.append((datasets,Z,A,R,N_offset,args))
         
         N_tasks = len(pairings)
         N_processes = np.min([N_processes,N_tasks])
@@ -178,7 +178,7 @@ def parallel_fitting_automatic(datasets_keys:list,Z:int,A:int,Rs=np.arange(5.00,
         
     return results_dict
 
-def fit_runner(datasets_keys,Z,A,R,N,args):
+def fit_runner(datasets:dict,Z,A,R,N,args):
     print("Start fit with R="+str(R)+", N="+str(N)+" (PID:"+str(os.getpid())+")")
     
     args = copy.deepcopy(args) # prevents that args are poped from the source
@@ -196,8 +196,8 @@ def fit_runner(datasets_keys,Z,A,R,N,args):
     else:
         ai_ini = None
 
-    initialization = initializer(Z,A,R,N,ai=ai_ini,initialize_from=initialize_from)
-    result = fitter(datasets_keys,initialization,**args)
+    initialization = initializer(Z,A,R,N,datasets,ai=ai_ini,initialize_from=initialize_from)
+    result = fitter(datasets,initialization,**args)
     print("Finished fit with R="+str(R)+", N="+str(N)+" (PID:"+str(os.getpid())+")")
     return result
 
