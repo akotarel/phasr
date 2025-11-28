@@ -26,18 +26,34 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
     # usually: monotonous_decrease_precision=0.04
     # xi_diff_convergence_limit is a deprecated feature and has no effect   
     
-    settings_dict = {'datasets':list(datasets.keys()),'datasets_barrett_moment':barrett_moment_keys,'monotonous_decrease_precision':monotonous_decrease_precision,'xi_diff_convergence_limit':xi_diff_convergence_limit,'numdifftools_step':numdifftools_step,**cross_section_args,**minimizer_args}
+    list_fit_luminosities=[datasets[data_name].get('fit_luminosities','n') for data_name in datasets]
+    settings_dict = {'datasets':list(datasets.keys()),'fit_luminosities': list_fit_luminosities,'datasets_barrett_moment':barrett_moment_keys,'monotonous_decrease_precision':monotonous_decrease_precision,'xi_diff_convergence_limit':xi_diff_convergence_limit,'numdifftools_step':numdifftools_step,**cross_section_args,**minimizer_args}
     
     initial_parameters = parameter_set(initialization.R,initialization.Z,ai=initialization.ai,ai_abs_bound=initialization.ai_abs_bound,luminosities=initialization.luminosities)
 
-    initializer_dict = {'Z':initialization.Z,'A':initialization.A,'R':initialization.R,'N':initialization.N,'xi_ini':initial_parameters.get_xi(),'ai_ini':initial_parameters.get_ai(),'ai_abs_bounds':initial_parameters.ai_abs_bound}
+    initializer_dict = {'Z':initialization.Z,'A':initialization.A,'R':initialization.R,'N':initialization.N,'xi_ini':initial_parameters.get_xi(),'ai_ini':initial_parameters.get_ai(),'ai_abs_bounds':initial_parameters.ai_abs_bound,
+                        'luminosities_ini':initialization.luminosities}
     
     test_dict = {**settings_dict,**initializer_dict}
     visible_keys = ['Z','A','R','N','datasets']
     tracked_keys = list(test_dict.keys())
     
     loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys)
+
+    def update_datasets_with_luminosities(luminosities):
+        array_index=0
+        for data_name in datasets:
+            if datasets[data_name].get('fit_luminosities','n')=='y':
+                for energy in datasets[data_name]['luminosities']:
+                    datasets[data_name]['luminosities'][energy]=luminosities[array_index]
+                    array_index+=1
     
+    def adjust_arguements(measure_key):
+        if measure_key in datasets.keys() and datasets[measure_key].get('fit_luminosities','n')=='y': 
+            return (current_nucleus,datasets[measure_key]['luminosities'])
+        else:
+            return (current_nucleus,)
+        
     if (loaded_results_dict is None) or renew:
     
         measures = construct_measures(initialization.Z,initialization.A,datasets,barrett_moment_keys,monotonous_decrease_precision,cross_section_args)
@@ -51,19 +67,11 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             parameters = parameter_set(initialization.R,initialization.Z,xi=fit_params[:initialization.N-1],luminosities=fit_params[initialization.N-1:],ai_abs_bound=initialization.ai_abs_bound)
             current_nucleus.update_ai(parameters.get_ai())
             
-            array_index=0
-            for data_name in datasets:
-                if datasets[data_name].get('fit_luminosities','n')=='y':
-                    for energy in datasets[data_name]['luminosities']:
-                        datasets[data_name]['luminosities'][energy]=parameters.luminosities[array_index]
-                        array_index+=1
+            update_datasets_with_luminosities(parameters.luminosities)
 
             loss=0
             for measures_key in measures:
-                if measures_key in datasets.keys() and datasets[measures_key].get('fit_luminosities','n')=='y': 
-                    loss += measures[measures_key].loss(current_nucleus,datasets[measures_key]['luminosities'])
-                else:
-                    loss += measures[measures_key].loss(current_nucleus)
+                loss += measures[measures_key].loss(*adjust_arguements(measures_key))
             if loss_eval%10==0:
                 print("Loss (R="+str(current_nucleus.R)+",N="+str(current_nucleus.N_a)+",eval:"+str(loss_eval)+") =",loss)
             return loss
@@ -84,7 +92,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         rand = 1
         while not converged and rand > 0:
             for key in measures:
-                measures[key].set_cov(current_nucleus)    
+                measures[key].set_cov(*adjust_arguements(key))    
             print('Starting current fit step (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+') with loss =',loss_function(params_initial))
             result = minimize(loss_function,params_initial,bounds=bounds_params,**minimizer_args)
             print('Finished current fit step (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+') with loss =',result.fun)
@@ -102,12 +110,18 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
                         print('Not converged (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+'): x_f-x_i =', xi_diff, '(lum_f-lum_i)/lum_i:', lum_diff)
                     else:
                         print('Not converged (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+'): x_f-x_i =', xi_diff)
-                    params_initial = result.x
+                    
+            params_initial = result.x
+            parameters = parameter_set(initialization.R,initialization.Z,xi=result.x[:initialization.N-1],luminosities=result.x[initialization.N-1:],ai_abs_bound=initialization.ai_abs_bound)
+            current_nucleus.update_ai(parameters.get_ai())
+            update_datasets_with_luminosities(parameters.luminosities)
             rand = 1.0 + np.random.rand()
         print('Finished fit (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+'), Calculating Hessian')
         
         Hessian_function = ndt.Hessian(loss_function,step=numdifftools_step)
         hessian = Hessian_function(result.x)
+        print('result is:',result.x)
+        print('Hessian is:',hessian)
         hessian_inv = inv(hessian)
         covariance_params = 2*hessian_inv
         
@@ -117,23 +131,24 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         out_parameters.update_cov_xi_then_cov_ai(covariance_params[:len(xi_bounds),:len(xi_bounds)])
         out_parameters.set_ai_tilde_from_xi()
         out_parameters.set_ai_from_ai_tilde()
-        
+        update_datasets_with_luminosities(out_parameters.luminosities)
+
         parameters_results={'xi':out_parameters.get_xi(),'ai':out_parameters.get_ai(),'dxi_stat':np.sqrt(out_parameters.cov_xi.diagonal()),'dai_stat':np.sqrt(out_parameters.cov_ai.diagonal()),'cov_xi_stat':out_parameters.cov_xi,'cov_ai_stat':out_parameters.cov_ai,
                             'luminosities':{datasets[data_name]:datasets[data_name]['luminosities'] for data_name in datasets if datasets[data_name].get('fit_luminosities','n')=='y'}}
         
         # calc statistical measures
         chisq, resid, sample_size, dof, redchisq, p_val = {}, {}, {}, {}, {}, {}
         chisq['total'], sample_size['total'] = 0, 0
-        for dataset_key in measures:
-            resid[dataset_key] = measures[dataset_key].residual(current_nucleus)
-            chisq[dataset_key] = measures[dataset_key].loss(current_nucleus)
-            sample_size[dataset_key] = len(resid[dataset_key])
-            if sample_size[dataset_key] > out_parameters.N_x:
-                dof[dataset_key] = sample_size[dataset_key] - out_parameters.N_x
-                redchisq[dataset_key] = chisq[dataset_key]/dof[dataset_key]
-                p_val[dataset_key] = chi2.sf(chisq[dataset_key],dof[dataset_key])
-            chisq['total'] += chisq[dataset_key]
-            sample_size['total'] += sample_size[dataset_key]
+        for measures_key in measures:
+            resid[measures_key] = measures[measures_key].residual(*adjust_arguements(measures_key))
+            chisq[measures_key] = measures[measures_key].loss(*adjust_arguements(measures_key))
+            sample_size[measures_key] = len(resid[measures_key])
+            if sample_size[measures_key] > out_parameters.N_x:
+                dof[measures_key] = sample_size[measures_key] - out_parameters.N_x
+                redchisq[measures_key] = chisq[measures_key]/dof[measures_key]
+                p_val[measures_key] = chi2.sf(chisq[measures_key],dof[measures_key])
+            chisq['total'] += chisq[measures_key]
+            sample_size['total'] += sample_size[measures_key]
         dof['total'] = sample_size['total'] - out_parameters.N_x
         redchisq['total'] =  chisq['total']/dof['total']
         p_val['total'] = chi2.sf(chisq['total'],dof['total'])    
@@ -142,9 +157,9 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         statistics_results={'chisq':chisq['total'],'redchisq':redchisq['total'],'p_val':p_val['total'],'dof':dof['total'],'sample_size':sample_size['total'],'nfev':loss_eval,'statistics_dict':statistics_dict}
         
         values_results={}
-        for dataset_key in measures:
-            values_results['x_'+dataset_key]=measures[dataset_key].x_data
-            values_results['y_'+dataset_key]=measures[dataset_key].test_function_eval(current_nucleus)
+        for measures_key in measures:
+            values_results['x_'+measures_key]=measures[measures_key].x_data
+            values_results['y_'+measures_key]=measures[measures_key].test_function_eval(*adjust_arguements(measures_key))
         
         # calc radius and barrett moment uncertainties
         r_ch = current_nucleus.charge_radius
@@ -189,28 +204,28 @@ def construct_measures(Z,A,datasets:dict,barrett_moment_keys=[],monotonous_decre
         datasets[data_name]['cov_stat_data'] = np.einsum('i,ij,j->ij',dy_stat,corr_stat,dy_stat)
         datasets[data_name]['cov_syst_data'] = np.einsum('i,ij,j->ij',dy_syst,corr_syst,dy_syst)
 
-    def cross_section(energy_and_theta,nucleus):
-        energies = energy_and_theta[:,0]
-        thetas = energy_and_theta[:,1]
-        cross_section = np.zeros(len(energies))
-        for energy in np.unique(energies):
-            mask = (energy==energies)
-            cross_section[mask] = crosssection_lepton_nucleus_scattering(energy,thetas[mask],nucleus,**cross_section_args)*constants.hc**2
-        return cross_section
-    
-    def reaction_rate(energy_and_theta,nucleus,luminosities:dict):
-        energies = energy_and_theta[:,0]
-        thetas = energy_and_theta[:,1]
-        reaction_rate = np.zeros(len(energies))
-        for energy in np.unique(energies):
-            mask = (energy==energies)
-            reaction_rate[mask] = luminosities[energy]*crosssection_lepton_nucleus_scattering(energy,thetas[mask],nucleus,**cross_section_args)*constants.hc**2
-        return reaction_rate
-    
-    if fit_luminosities=='y':
-        measures[data_name] = minimization_measures(reaction_rate,datasets[data_name]['x_data'],datasets[data_name]['y_data'],datasets[data_name]['cov_stat_data'],datasets[data_name]['cov_syst_data'])
-    else:
-        measures[data_name] = minimization_measures(cross_section,datasets[data_name]['x_data'],datasets[data_name]['y_data'],datasets[data_name]['cov_stat_data'],datasets[data_name]['cov_syst_data'])
+        def cross_section(energy_and_theta,nucleus):
+            energies = energy_and_theta[:,0]
+            thetas = energy_and_theta[:,1]
+            cross_section = np.zeros(len(energies))
+            for energy in np.unique(energies):
+                mask = (energy==energies)
+                cross_section[mask] = crosssection_lepton_nucleus_scattering(energy,thetas[mask],nucleus,**cross_section_args)*constants.hc**2
+            return cross_section
+        
+        def reaction_rate(energy_and_theta,nucleus,luminosities:dict):
+            energies = energy_and_theta[:,0]
+            thetas = energy_and_theta[:,1]
+            reaction_rate = np.zeros(len(energies))
+            for energy in np.unique(energies):
+                mask = (energy==energies)
+                reaction_rate[mask] = luminosities[energy]*crosssection_lepton_nucleus_scattering(energy,thetas[mask],nucleus,**cross_section_args)*constants.hc**2
+            return reaction_rate
+        
+        if fit_luminosities=='y':
+            measures[data_name] = minimization_measures(reaction_rate,datasets[data_name]['x_data'],datasets[data_name]['y_data'],datasets[data_name]['cov_stat_data'],datasets[data_name]['cov_syst_data'])
+        else:
+            measures[data_name] = minimization_measures(cross_section,datasets[data_name]['x_data'],datasets[data_name]['y_data'],datasets[data_name]['cov_stat_data'],datasets[data_name]['cov_syst_data'])
 
     
     if barrett_moment_constraint:
