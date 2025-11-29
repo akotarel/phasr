@@ -123,10 +123,11 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         try:
             hessian_inv = inv(hessian)
         except np.linalg.LinAlgError:
+            print("R="+str(current_nucleus.R)+",N="+str(current_nucleus.N_a)+")")
             print('Hessian is singular')
             print('result is:',result.x)
             print('Hessian is:',hessian)
-            results_dict ={}
+            results_dict ={'error':'Hessian is singular'}
             return results_dict
         
         covariance_params = 2*hessian_inv
