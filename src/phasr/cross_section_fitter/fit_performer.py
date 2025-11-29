@@ -120,9 +120,15 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         
         Hessian_function = ndt.Hessian(loss_function,step=numdifftools_step)
         hessian = Hessian_function(result.x)
-        print('result is:',result.x)
-        print('Hessian is:',hessian)
-        hessian_inv = inv(hessian)
+        try:
+            hessian_inv = inv(hessian)
+        except np.linalg.LinAlgError:
+            print('Hessian is singular')
+            print('result is:',result.x)
+            print('Hessian is:',hessian)
+            results_dict ={}
+            return results_dict
+        
         covariance_params = 2*hessian_inv
         
         print('Finished, Constructing results dictionary (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+')')
