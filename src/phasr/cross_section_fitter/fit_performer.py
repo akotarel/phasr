@@ -95,7 +95,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             off_diagonal_covariance+=measures[key].off_diagonal_covariance
 
         params_initial = initial_parameters.get_params()
-        xi_bounds = len(initial_parameters.get_xi())*[(0,1)]
+        xi_bounds = len(initial_parameters.get_xi())*[(numdifftools_step,1-numdifftools_step)]
         luminosities_bounds=len(initialization.luminosities)*[(0,np.inf)]
 
         # Restrict luminosities
@@ -143,7 +143,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         try:
             hessian_inv = inv(hessian)
         except np.linalg.LinAlgError:
-            print("R="+str(current_nucleus.R)+",N="+str(current_nucleus.N_a)+")")
+            print("(R="+str(current_nucleus.R)+",N="+str(current_nucleus.N_a)+")")
             print('Hessian is singular')
             print('result is:',result.x)
             print('Hessian is:',hessian)
