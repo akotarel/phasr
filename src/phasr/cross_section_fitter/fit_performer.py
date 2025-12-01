@@ -40,6 +40,20 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
     
     loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys)
 
+    def find_luminosity_index(Data_name,Energy,luminosities):
+        array_index=0
+        for data_name in datasets:
+            if datasets[data_name].get('fit_luminosities','n')=='y':
+                for energy in datasets[data_name]['luminosities']:
+                    if Data_name==data_name and Energy==energy:
+                        return array_index
+                    elif array_index<len(luminosities)-1:
+                        array_index+=1
+                    else:
+                        raise ValueError("Fit-parameter not found in luminosities vector")
+        
+        raise ValueError("Fit-parameter not found in luminosities vector")
+                    
     def update_datasets_with_luminosities(luminosities):
         array_index=0
         for data_name in datasets:
@@ -83,6 +97,12 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         params_initial = initial_parameters.get_params()
         xi_bounds = len(initial_parameters.get_xi())*[(0,1)]
         luminosities_bounds=len(initialization.luminosities)*[(0,np.inf)]
+
+        # Restrict luminosities
+        for data_name in datasets:
+            if datasets[data_name].get('fit_luminosities','n')=='y' and 'luminosities_bounds' in datasets[data_name]:
+                for energy in datasets[data_name]['luminosities_bounds']:
+                    luminosities_bounds[find_luminosity_index(data_name,energy,luminosities_bounds)]=datasets[data_name]['luminosities_bounds'][energy]
 
         bounds_params=xi_bounds+luminosities_bounds
         
