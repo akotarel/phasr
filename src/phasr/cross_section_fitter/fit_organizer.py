@@ -193,7 +193,7 @@ def fit_runner(datasets:dict,Z,A,R,N,args):
     if 'ai_ini' in args:
         ai_ini = args['ai_ini']
         args.pop('ai_ini')
-        print(ai_ini)
+        #print(ai_ini)
     else:
         ai_ini = None
 
