@@ -2,6 +2,7 @@ from ... import constants
 from ..base import nucleus_base
 
 import numpy as np
+from scipy import quad
 pi = np.pi
 
 from functools import partial
@@ -276,3 +277,19 @@ def dcharge_density_dr_FB(r,ai,R,qi):
     if np.isscalar(r):
         drho_dr=drho_dr[0]
     return drho_dr
+
+
+def get_ai_from_charge_density(charge_density,N,R):
+    """ Given a charge density, return the ai coefficients of the Fourier-Bessel expansion"""
+    ai=np.zeros(N)
+    Z=4*np.pi*quad(lambda r: r**2*charge_density(r),0,np.inf)[0]
+    def q(n):
+        return n*np.pi/R
+    def j(r,n):
+        return np.sin(q(n)*r)/(q(n)*r)
+
+    for n in np.arange(1,N):
+        ai[n-1]=2*(np.pi*n)**2/R**3*quad(lambda r: r**2*j(r,n)*charge_density(r),0,R)[0]
+    # Fixed by charge conservation
+    ai[N-1]=(-1)**(N+1)*(Z/(4*np.pi*R)*q(N)**2-np.sum(ai[:-1]*(-1)**(np.arange(1,N)+1)*(q(N)/q(np.arange(1,N)))**2))
+    return ai

@@ -13,13 +13,14 @@ from .fit_initializer import initializer
 from .data_prepper import load_dataset
 #from .uncertainties import add_systematic_uncertanties
 from .. import nucleus
+from phasr.nuclei.parameterizations.fourier_bessel import get_ai_from_charge_density
 
 from multiprocessing import Pool, cpu_count
 
 from ..utility.mpsentinel import MPSentinel
 MPSentinel.As_master()
 
-def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,redo_aggressive=False,N_processes=cpu_count()-2,**args):
+def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,redo_aggressive=False, redo_R=False,N_processes=cpu_count()-2,**args):
     
     results={}
     
@@ -31,7 +32,7 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
             R,N=RN_tuples[i]
             R = np.float64(R)
             N = np.int64(N)
-            pairings.append((datasets,Z,A,R,N,args))
+            pairings.append((copy.deepcopy(datasets),Z,A,R,N,args))
         
         N_tasks = len(pairings)
         N_processes = np.min([N_processes,N_tasks])
@@ -47,7 +48,7 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
 
         if redo_N:
 
-            print('Check if any fits need to be redone.')
+            print('Check if any fits need to be redone. (redo_N)')
 
             #redo fits with bad convergence
             redo_pairings = []
@@ -71,8 +72,12 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
                 
                 if best_key_RN != key_RN:
                     print('For '+ key_RN +' chi^2 with '+str(best_N_off)+' less parameter is more than 1 permil better:',chisq_RN,'vs',best_chisq_RN)
-                    #print('Use ai:',results_dict[key_RNm1]['ai'])
+                    
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
+                    for data_name in pairing[0]:
+                        if pairing[0][data_name].get('fit_luminosities','n')=='y':
+                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN][data_name]['luminosities']
+
                     redo_pairings.append(copy.deepcopy(pairing))
                     
             N_tasks = len(redo_pairings)
@@ -95,10 +100,67 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
             else:
                 print('No fits need to be redone.')
                 
+        if redo_R:
+            print('Check if any fits need to be redone (redo_R).') 
+            #redo fits with bad convergence
+            redo_pairings = []
+
+            N_list=np.array([pairing[4] for pairing in pairings],dtype=int)
+            N_list=np.unique(N_list)
+            
+            for N in N_list:
+                R_list=np.array([pairing[3] for pairing in pairings if pairing[4]==N],dtype=float)
+                R_list=np.sort(R_list)
+                
+                if len(R_list)>=3:
+                    i=1
+                    while i<len(R_list)-1:
+                        R_sample=np.array([R_list[i-1],R_list[i],R_list[i+1]],dtype=float)
+                        chisq_sample=np.array([results_dict['R'+str(R) + '_N'+str(N)]['chisq'] for R in R_sample],dtype=float)
+                        
+                        curvature=2/(R_sample[2]-R_sample[0]) * ( (chisq_sample[2]-chisq_sample[1])/(R_sample[2]-R_sample[1]) - (chisq_sample[1]-chisq_sample[0])/(R_sample[1]-R_sample[0]) )
+
+                        vector_1=np.array([R_sample[1]-R_sample[0],chisq_sample[1]-chisq_sample[0]])
+                        vector_2=np.array([R_sample[2]-R_sample[1],chisq_sample[2]-chisq_sample[1]])
+                        angle=np.arccos( np.dot(vector_1,vector_2) / (np.linalg.norm(vector_1)*np.linalg.norm(vector_2)) )
+                        # criterion that the middle point (R1,chisq_R1[1]) has not converged
+                        if curvature<0 and angle>10.*np.pi/180:
+                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,args)
+
+                            guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
+                            guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
+                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, R_sample[1], N) # get ai's adjusted to new R
+                            for data_name in pairing[0]:
+                                if pairing[0][data_name].get('fit_luminosities','n')=='y':
+                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN][data_name]['luminosities']
+
+                            redo_pairings.append(copy.deepcopy(pairing))
+                            R_list=np.delete(R_list,i) # this point should not be taken into account
+                            i-=1
+                        i+=1
+                
+
+            N_tasks = len(redo_pairings)
+            if N_tasks>0:
+                N_processes = np.min([N_processes,N_tasks])
+                print('Queuing',N_tasks,'tasks that need to be redone, which will be performed over',N_processes,'processes.')
+                
+                with Pool(processes=N_processes) as pool:  # maxtasksperchild=1
+                    redo_results = pool.starmap(fit_runner,redo_pairings)
+                
+                redo_results_dict = { 'R'+str(redo_pairings[i][3]) + '_N'+str(redo_pairings[i][4]) : redo_results[i] for i in range(len(redo_results))}
+
+                for pairing in redo_pairings:
+                    key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4]) 
+                    chisq_RN_old = results_dict[key_RN]['chisq']
+                    chisq_RN_new = redo_results_dict[key_RN]['chisq']
+                    if chisq_RN_new < chisq_RN_old:
+                        results_dict[key_RN] = redo_results_dict[key_RN]
+                
         
     return results_dict
 
-def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00,0.25),N_base_offset=0,N_base_span=2,redo_N=False,redo_aggressive=False,N_processes=cpu_count()-2,**args):
+def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00,0.25),N_base_offset=0,N_base_span=2,redo_N=False,redo_R=False,redo_aggressive=False,N_processes=cpu_count()-2,**args):
     
     results={}
     
@@ -120,7 +182,7 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
             N=np.int64(Ns[i])
             for N_offset in np.arange(N-N_base_span,N+N_base_span+1,1,dtype=int):
                 if N_offset>2:
-                    pairings.append((datasets,Z,A,R,N_offset,args))
+                    pairings.append((copy.deepcopy(datasets),Z,A,R,N_offset,args))
         
         N_tasks = len(pairings)
         N_processes = np.min([N_processes,N_tasks])
@@ -135,7 +197,7 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
 
         if redo_N:
 
-            print('Check if any fits need to be redone.')
+            print('Check if any fits need to be redone (redo_N).')
             #redo fits with bad convergence
             redo_pairings = []
             eps_N=1e-3
@@ -156,8 +218,12 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                 
                 if best_key_RN != key_RN:
                     print('For '+ key_RN +' chi^2 with '+str(best_N_off)+' less parameter is more than 1 permil better:',chisq_RN,'vs',best_chisq_RN)
-                    #print('Use ai:',results_dict[key_RNm1]['ai'])
+                    
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
+                    for data_name in pairing[0]:
+                        if pairing[0][data_name].get('fit_luminosities','n')=='y':
+                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN][data_name]['luminosities']
+
                     redo_pairings.append(copy.deepcopy(pairing))
 
             N_tasks = len(redo_pairings)
@@ -176,7 +242,64 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                     chisq_RN_new = redo_results_dict[key_RN]['chisq']
                     if chisq_RN_new < chisq_RN_old:
                         results_dict[key_RN] = redo_results_dict[key_RN]
-        
+
+        if redo_R:
+            print('Check if any fits need to be redone (redo_R).') 
+            #redo fits with bad convergence
+            redo_pairings = []
+
+            N_list=np.array([pairing[4] for pairing in pairings],dtype=int)
+            N_list=np.unique(N_list)
+            
+            for N in N_list:
+                R_list=np.array([pairing[3] for pairing in pairings if pairing[4]==N],dtype=float)
+                R_list=np.sort(R_list)
+                
+                if len(R_list)>=3:
+                    i=1
+                    while i<len(R_list)-1:
+                        R_sample=np.array([R_list[i-1],R_list[i],R_list[i+1]],dtype=float)
+                        chisq_sample=np.array([results_dict['R'+str(R) + '_N'+str(N)]['chisq'] for R in R_sample],dtype=float)
+                        
+                        curvature=2/(R_sample[2]-R_sample[0]) * ( (chisq_sample[2]-chisq_sample[1])/(R_sample[2]-R_sample[1]) - (chisq_sample[1]-chisq_sample[0])/(R_sample[1]-R_sample[0]) )
+
+                        vector_1=np.array([R_sample[1]-R_sample[0],chisq_sample[1]-chisq_sample[0]])
+                        vector_2=np.array([R_sample[2]-R_sample[1],chisq_sample[2]-chisq_sample[1]])
+                        angle=np.arccos( np.dot(vector_1,vector_2) / (np.linalg.norm(vector_1)*np.linalg.norm(vector_2)) )
+                        # criterion that the middle point (R1,chisq_R1[1]) has not converged
+                        if curvature<0 and angle>10.*np.pi/180:
+                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,args)
+
+                            guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
+                            guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
+                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, R_sample[1], N) # get ai's adjusted to new R
+                            for data_name in pairing[0]:
+                                if pairing[0][data_name].get('fit_luminosities','n')=='y':
+                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN][data_name]['luminosities']
+
+                            redo_pairings.append(copy.deepcopy(pairing))
+                            R_list=np.delete(R_list,i) # this point should not be taken into account
+                            i-=1
+                        i+=1
+                
+
+            N_tasks = len(redo_pairings)
+            if N_tasks>0:
+                N_processes = np.min([N_processes,N_tasks])
+                print('Queuing',N_tasks,'tasks that need to be redone, which will be performed over',N_processes,'processes.')
+                
+                with Pool(processes=N_processes) as pool:  # maxtasksperchild=1
+                    redo_results = pool.starmap(fit_runner,redo_pairings)
+                
+                redo_results_dict = { 'R'+str(redo_pairings[i][3]) + '_N'+str(redo_pairings[i][4]) : redo_results[i] for i in range(len(redo_results))}
+
+                for pairing in redo_pairings:
+                    key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4]) 
+                    chisq_RN_old = results_dict[key_RN]['chisq']
+                    chisq_RN_new = redo_results_dict[key_RN]['chisq']
+                    if chisq_RN_new < chisq_RN_old:
+                        results_dict[key_RN] = redo_results_dict[key_RN]
+
     return results_dict
 
 def fit_runner(datasets:dict,Z,A,R,N,args):
