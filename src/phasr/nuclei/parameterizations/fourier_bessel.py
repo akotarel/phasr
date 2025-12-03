@@ -2,7 +2,7 @@ from ... import constants
 from ..base import nucleus_base
 
 import numpy as np
-from scipy import quad
+from scipy.integrate import quad
 pi = np.pi
 
 from functools import partial

@@ -222,7 +222,7 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
                     for data_name in pairing[0]:
                         if pairing[0][data_name].get('fit_luminosities','n')=='y':
-                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN][data_name]['luminosities']
+                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN]['luminosities'][data_name]
 
                     redo_pairings.append(copy.deepcopy(pairing))
 
