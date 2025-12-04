@@ -272,18 +272,20 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
 
                             guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
                             guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
-                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, R_sample[1], N) # get ai's adjusted to new R
+                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, N,R_sample[1]) # get ai's adjusted to new R
                             for data_name in pairing[0]:
                                 if pairing[0][data_name].get('fit_luminosities','n')=='y':
-                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN][data_name]['luminosities']
+                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN]['luminosities'][data_name]
 
                             redo_pairings.append(copy.deepcopy(pairing))
                             R_list=np.delete(R_list,i) # this point should not be taken into account
                             i-=1
                         i+=1
-                
 
             N_tasks = len(redo_pairings)
+	    for pairing in redo_pairings:
+	    	key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4])
+	    	print("R"+str(pairing[3])+ '_N'+str(pairing[4])+'chisq_old'+results_dict[key_RN]['chisq'])
             if N_tasks>0:
                 N_processes = np.min([N_processes,N_tasks])
                 print('Queuing',N_tasks,'tasks that need to be redone, which will be performed over',N_processes,'processes.')
