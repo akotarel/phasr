@@ -161,7 +161,8 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
         update_datasets_with_luminosities(out_parameters.luminosities)
 
         parameters_results={'xi':out_parameters.get_xi(),'ai':out_parameters.get_ai(),'dxi_stat':np.sqrt(out_parameters.cov_xi.diagonal()),'dai_stat':np.sqrt(out_parameters.cov_ai.diagonal()),'cov_xi_stat':out_parameters.cov_xi,'cov_ai_stat':out_parameters.cov_ai,
-                            'luminosities':{data_name:datasets[data_name]['luminosities'] for data_name in datasets if datasets[data_name].get('fit_luminosities','n')=='y'}}
+                            'luminosities':{data_name:datasets[data_name]['luminosities'] for data_name in datasets if datasets[data_name].get('fit_luminosities','n')=='y'}, 
+                            'cov_luminosities':covariance_params[len(xi_bounds):,len(xi_bounds):] if len(luminosities_bounds)>0 else np.array([])}
         
         # calc statistical measures
         chisq, resid, sample_size, dof, redchisq, p_val = {}, {}, {}, {}, {}, {}

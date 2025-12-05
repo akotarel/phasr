@@ -412,3 +412,42 @@ def split_based_on_asymptotic_and_p_val(results_dict,qs=[400,580,680,1000],dq=1.
             results_dict_veto[key]=result
         
     return results_dict_survive, results_dict_veto, limit_asymptotic
+
+def redo_parallel_fitting(datasets:dict,Z:int,A:int,results_dict,redo_tuples=[], N_processes=cpu_count()-2,**args):
+    
+    if MPSentinel.Is_master():    
+        
+        redo_pairings = []
+        
+        for i in range(len(redo_tuples)):
+            R=np.float64(redo_tuples[i][0]); N=np.int64(redo_tuples[i][1]) ; args['ai_ini']=redo_tuples[i][2]
+            datasets_copy=copy.deepcopy(datasets)
+            if len(redo_tuples[i])>3:
+                luminosities_ini=redo_tuples[i][3]
+                for data_name in luminosities_ini:
+                    if datasets_copy[data_name].get('fit_luminosities','n')=='y':
+                        datasets_copy[data_name]['luminosities'] = luminosities_ini[data_name]
+            redo_pairings.append((datasets_copy,Z,A,R,N,args))
+        
+        N_tasks = len(redo_pairings)
+        N_processes = np.min([N_processes,N_tasks])
+        
+        print('Queuing',N_tasks,'tasks, which will be performed over',N_processes,'processes.')
+        
+        with Pool(processes=N_processes) as pool:  # maxtasksperchild=1
+            redo_results = pool.starmap(fit_runner,redo_pairings)
+    
+        print('Finished all tasks.')
+        
+        redo_results_dict = { 'R'+str(redo_pairings[i][3]) + '_N'+str(redo_pairings[i][4]) : redo_results[i] for i in range(len(redo_results))}
+        for pairing in redo_pairings:
+            key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4]) 
+            if key_RN in results_dict:
+                chisq_RN_old = results_dict[key_RN]['chisq']
+                chisq_RN_new = redo_results_dict[key_RN]['chisq']
+                if chisq_RN_new < chisq_RN_old:
+                    results_dict[key_RN] = redo_results_dict[key_RN]
+            else:
+                results_dict[key_RN] = redo_results_dict[key_RN]
+        
+    return results_dict
