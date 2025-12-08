@@ -428,7 +428,7 @@ def rsq_dict_add_r_vals(rsq_correlation_results_dict,verbose=True):
 
 
 # plotting routine
-def plot_correlation(ax,AI_datasets,x_str,y_strs,x_ref=None,dx_ref=None,x_ref_label=None,y_str_label_trans=lambda x: x ,xrange=None,yrange=None,plot_fit=True,plot_color_legend=True,plot_marker_legend=True,hatch=None):
+def plot_correlation(ax,AI_datasets,x_str,y_strs,x_ref=None,dx_ref=None,x_ref_label=None,y_str_label_trans=lambda x: x ,xrange=None,yrange=None,plot_fit=True,plot_color_legend=True,plot_marker_legend=True,hatch=None,color_nr=0):
 
     AI_names = {'DN2LOGO':r'$\Delta$NNLO$_\operatorname{GO}$','N2LOsat':r'NNLO$_\operatorname{sat}$','EM1p82p0':r'$1.8/2.0$ (EM)','EM2p02p0':r'$2.0/2.0$ (EM)','EM2p02p0PWA':r'$2.0/2.0$ (PWA)','EM2p22p0':r'$2.2/2.0$ (EM)','1p82p0EM7p5':'1.8/2.0 (EM7.5)', '1p82p0sim7p5':'1.8/2.0 (sim7.5)','NIsample':'Samples from\nHu et al. (2022)','SM':'shell model'}
     marker_dict={'DN2LOGO':'s','N2LOsat':'D','EM1p82p0':'p','EM2p02p0':'X','EM2p02p0PWA':'d','EM2p22p0':'P','1p82p0EM7p5':'v','1p82p0sim7p5':'^','NIsample':'.','SM':'h'}
@@ -478,7 +478,6 @@ def plot_correlation(ax,AI_datasets,x_str,y_strs,x_ref=None,dx_ref=None,x_ref_la
     
     x=np.arange(x_min,x_max+x_bin,x_bin)
     
-    color_nr=0
     for y_str in y_strs:
         color_nr+=1
         if color_nr==3:
