@@ -20,7 +20,7 @@ class constants():
     kappa_p=1.79284734462#(82)
     kappa_n=-1.91304273#(45)
     rsq_sN=-0.0048#(6) #fm^2
-    kappa_sN=-0.017#(4) #fm^2
+    kappa_sN=-0.017#(4) 
 
     # weak charge per proton/neutron
     Qw_p=0.0710#(4) old:0.0714
