@@ -76,7 +76,7 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
                     for data_name in pairing[0]:
                         if pairing[0][data_name].get('fit_luminosities','n')=='y':
-                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN][data_name]['luminosities']
+                            pairing[0][data_name]['luminosities'] = results_dict[best_key_RN]['luminosities'][data_name]
 
                     redo_pairings.append(copy.deepcopy(pairing))
                     
@@ -129,10 +129,10 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
 
                             guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
                             guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
-                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, R_sample[1], N) # get ai's adjusted to new R
+                            pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density,N,R_sample[1]) # get ai's adjusted to new R
                             for data_name in pairing[0]:
                                 if pairing[0][data_name].get('fit_luminosities','n')=='y':
-                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN][data_name]['luminosities']
+                                    pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN]['luminosities'][data_name]
 
                             redo_pairings.append(copy.deepcopy(pairing))
                             R_list=np.delete(R_list,i) # this point should not be taken into account

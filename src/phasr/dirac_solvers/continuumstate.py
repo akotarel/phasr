@@ -12,9 +12,10 @@ import copy
 from ..nuclei.parameterizations.coulomb import electric_potential_coulomb, f_coulomb, g_coulomb, hyper1f1_coulomb, eta_coulomb, theta_coulomb, delta_coulomb, delta_1overr
 
 from mpmath import convert as convert_to_mp
+from .QED_corrections import potential_corrections
 
 class continuumstates():
-    def __init__(self,nucleus,kappa,energy,lepton_mass=0,
+    def __init__(self,nucleus,kappa,energy,lepton_mass=0,included_corrections=None,
                  **args):
         
         self.name = nucleus.name
@@ -25,7 +26,13 @@ class continuumstates():
         self.lepton_mass=lepton_mass
         
         self.nucleus = nucleus
-        self.Vmin = nucleus.Vmin
+        if included_corrections is not None:
+            self.corrected_potential=potential_corrections(nucleus,included_corrections=included_corrections)
+            self.potential=self.corrected_potential.corrected_potential
+            self.Vmin = self.potential(0)
+        else:
+            self.Vmin = nucleus.Vmin
+            self.potential=nucleus.electric_potential
         
         if "energy_norm" in args:
             self.energy_norm=args["energy_norm"]

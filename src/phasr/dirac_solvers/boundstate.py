@@ -7,6 +7,7 @@ from ..utility.spliner import save_and_load
 from ..utility.continuer import highenergy_continuation_exp
 
 from ..nuclei.parameterizations.coulomb import energy_coulomb_nk
+from .QED_corrections import potential_corrections
 
 import numpy as np
 pi = np.pi
@@ -17,7 +18,7 @@ import copy
 class boundstates():
     def __init__(self,nucleus,kappa,lepton_mass,
                  bindingenergy_limit_lower=None, bindingenergy_limit_upper=0.,
-                 **args):
+                 included_corrections=None, **args):
         
         self.name = nucleus.name
         self.nucleus_type = nucleus.nucleus_type
@@ -37,7 +38,13 @@ class boundstates():
         self.update_solver_setting()
         
         self.nucleus = nucleus
-        self.Vmin = nucleus.Vmin
+        if included_corrections is not None:
+            self.corrected_potential=potential_corrections(nucleus,included_corrections=included_corrections)
+            self.potential=self.corrected_potential.corrected_potential
+            self.Vmin = self.potential(0)
+        else:
+            self.Vmin = nucleus.Vmin
+            self.potential=nucleus.electric_potential
         
         self.bindingenergy_limit_lower = bindingenergy_limit_lower
         self.bindingenergy_limit_upper = bindingenergy_limit_upper
@@ -92,8 +99,8 @@ class boundstates():
         
         path=local_paths.energy_path+self.name+"_"+state_name(self._current_principal_quantum_number,self.kappa)+"_m"+str(self.lepton_mass)+".txt" # add more parameters, fct solver_setting to str
         
-        self._current_bindingenergy = save_and_load(path,self.solver_setting.renew,self.solver_setting.save,self.solver_setting.verbose,fmt='%.50e',fct=find_bindingenergy,tracked_params=self.solver_setting.as_dict(),nucleus=self.nucleus,bindingenergy_limit_lower=self._current_bindingenergy_limit_lower,bindingenergy_limit_upper=self.bindingenergy_limit_upper,kappa=self.kappa,lepton_mass=self.lepton_mass,solver_setting=self.solver_setting)
-        
+        self._current_bindingenergy = save_and_load(path,self.solver_setting.renew,self.solver_setting.save,self.solver_setting.verbose,fmt='%.50e',fct=find_bindingenergy,tracked_params=self.solver_setting.as_dict(),potential=self.potential,Vmin=self.Vmin,bindingenergy_limit_lower=self._current_bindingenergy_limit_lower,bindingenergy_limit_upper=self.bindingenergy_limit_upper,kappa=self.kappa,lepton_mass=self.lepton_mass,solver_setting=self.solver_setting)
+
         self.energy_levels.append(self._current_bindingenergy)
         
         self._current_energy = self._current_bindingenergy + self.lepton_mass
@@ -101,7 +108,7 @@ class boundstates():
     def solve_IVP_at_current_energy(self):
         
         energy_norm=self.solver_setting.energy_norm
-        def DGL(r,fct): return radial_dirac_eq_norm(r,fct,potential=self.nucleus.electric_potential,energy=self._current_energy,mass=self.lepton_mass,kappa=self.kappa,energy_norm=energy_norm)  
+        def DGL(r,fct): return radial_dirac_eq_norm(r,fct,potential=self.potential,energy=self._current_energy,mass=self.lepton_mass,kappa=self.kappa,energy_norm=energy_norm)  
         
         scale_initial=1 
         
@@ -172,7 +179,7 @@ def state_name(n,kappa):
     l_label = 's' if l==0 else 'p' if l==1 else 'd' if l==2 else 'f' if l==3 else 'g' if l==4 else '_l'+str(l)+'_'
     return str(n)+l_label+str(int(2*j))+'2'
 
-def find_bindingenergy(nucleus,bindingenergy_limit_lower,bindingenergy_limit_upper,kappa,lepton_mass,solver_setting):
+def find_bindingenergy(potential,Vmin,bindingenergy_limit_lower,bindingenergy_limit_upper,kappa,lepton_mass,solver_setting):
     
     energy_limit_lower = bindingenergy_limit_lower + lepton_mass
     energy_limit_upper = bindingenergy_limit_upper + lepton_mass
@@ -187,7 +194,7 @@ def find_bindingenergy(nucleus,bindingenergy_limit_lower,bindingenergy_limit_upp
     if bindingenergy_limit_upper<=bindingenergy_limit_lower:
         raise ValueError("lower energy limit needs to be smaller than upper energy limit")
     while (bindingenergy_limit_upper-bindingenergy_limit_lower)>energy_precision:
-        energy_limit_lower, energy_limit_upper = find_asymptotic_flip(nucleus,energy_limit_lower,energy_limit_upper,kappa,lepton_mass,solver_setting)
+        energy_limit_lower, energy_limit_upper = find_asymptotic_flip(potential,Vmin,energy_limit_lower,energy_limit_upper,kappa,lepton_mass,solver_setting)
         bindingenergy_limit_lower, bindingenergy_limit_upper  = energy_limit_lower - lepton_mass, energy_limit_upper - lepton_mass
         bindingenergy=(bindingenergy_limit_upper+bindingenergy_limit_lower)/2
         if verbose:
@@ -195,7 +202,7 @@ def find_bindingenergy(nucleus,bindingenergy_limit_lower,bindingenergy_limit_upp
     
     return bindingenergy
 
-def find_asymptotic_flip(nucleus,energy_limit_lower,energy_limit_upper,kappa,lepton_mass,solver_setting):
+def find_asymptotic_flip(potential,Vmin,energy_limit_lower,energy_limit_upper,kappa,lepton_mass,solver_setting):
 
     scale_initial=1e0
     
@@ -209,8 +216,8 @@ def find_asymptotic_flip(nucleus,energy_limit_lower,energy_limit_upper,kappa,lep
     first=True
     for energy in np.linspace(energy_limit_lower,energy_limit_upper,solver_setting.energy_subdivisions):
         
-        def DGL(r,y): return radial_dirac_eq_norm(r,y,potential=nucleus.electric_potential,energy=energy,mass=lepton_mass,kappa=kappa,energy_norm=energy_norm,contain=True)
-        initials= scale_initial*initial_values_norm(beginning_radius_norm=beginning_radius,electric_potential_V0=nucleus.Vmin,energy=energy,mass=lepton_mass,kappa=kappa,Z=nucleus.Z,energy_norm=energy_norm,nucleus_type=nucleus.nucleus_type,contain=True)
+        def DGL(r,y): return radial_dirac_eq_norm(r,y,potential=potential,energy=energy,mass=lepton_mass,kappa=kappa,energy_norm=energy_norm,contain=True)
+        initials= scale_initial*initial_values_norm(beginning_radius_norm=beginning_radius,electric_potential_V0=Vmin,energy=energy,mass=lepton_mass,kappa=kappa,Z=None,energy_norm=energy_norm,nucleus_type=None,contain=True)
         
         #if solver_setting.verbose:
         #    print('y0=',initials)
