@@ -1,0 +1,2 @@
+# {'beginning_radius_norm': 1e-06, 'beginning_radius': np.float64(0.0037263196941589617), 'critical_radius_norm': 0.3, 'critical_radius': np.float64(1117.8959082476886), 'asymptotic_radius_norm': 1, 'asymptotic_radius': np.float64(3726.3196941589617), 'radius_optimise_step_norm': 0.01, 'radius_optimise_step': np.float64(37.26319694158962), 'energy_precision_norm': 1e-06, 'energy_precision': np.float64(5.2954925126073243e-08), 'energy_subdivisions': 100, 'atol': 1e-12, 'rtol': 1e-09, 'method': 'DOP853'} (scalar)
+-5.36257489812186349809053353965282440185546875000000e-02

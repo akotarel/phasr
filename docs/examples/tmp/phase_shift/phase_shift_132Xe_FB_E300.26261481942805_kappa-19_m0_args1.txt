@@ -1,0 +1,3 @@
+# {'kappa': np.int64(-19), 'energy': np.float64(300.26261481942805), 'lepton_mass': 0, 'corrected_potential': <phasr.dirac_solvers.QED_corrections.potential_corrections object at 0x7de90e6ccc70>, 'beginning_radius': np.float64(0.0001), 'critical_radius': np.float64(19.900000000000002)} (array) 
+-1.15370986435944611336879006557865068316459655761719e+00
+-3.46007034135453750423039309680461883544921875000000e-08

@@ -15,7 +15,7 @@ from mpmath import convert as convert_to_mp
 from .QED_corrections import potential_corrections
 
 class continuumstates():
-    def __init__(self,nucleus,kappa,energy,lepton_mass=0,included_corrections=None,
+    def __init__(self,nucleus,kappa,energy,lepton_mass=0,
                  **args):
         
         self.name = nucleus.name
@@ -26,8 +26,8 @@ class continuumstates():
         self.lepton_mass=lepton_mass
         
         self.nucleus = nucleus
-        if included_corrections is not None:
-            self.corrected_potential=potential_corrections(nucleus,included_corrections=included_corrections)
+        if "corrected_potential" in args:
+            self.corrected_potential=args["corrected_potential"]
             self.potential=self.corrected_potential.corrected_potential
             self.Vmin = self.potential(0)
         else:
@@ -55,13 +55,14 @@ class continuumstates():
     def initialize_critical_radius(self):
         r=np.arange(self.inital_continuumstate_settings['radius_optimise_step'],self.inital_continuumstate_settings['asymptotic_radius'],self.inital_continuumstate_settings['radius_optimise_step'])
         potential_precision = self.inital_continuumstate_settings['potential_precision']
-        potential_coulomb_diff=(self.nucleus.electric_potential(r)-electric_potential_coulomb(r,self.Z))/electric_potential_coulomb(r,self.Z)
+        potential_coulomb_diff=(self.potential(r)-electric_potential_coulomb(r,self.Z))/electric_potential_coulomb(r,self.Z)
         r_coulomb = r[np.abs(potential_coulomb_diff)<potential_precision]
         self.inital_continuumstate_settings['critical_radius'] = r[-1] # default
         for rc in r_coulomb:
             if np.all(np.abs(potential_coulomb_diff[r>=rc])<potential_precision):
                 self.inital_continuumstate_settings['critical_radius'] = rc
                 break
+        print("critical radius set to ",self.inital_continuumstate_settings['critical_radius']," fm")
     
     def initialize_beginning_radius(self):
         r=np.arange(self.inital_continuumstate_settings['radius_optimise_step']*1e-3,self.inital_continuumstate_settings['radius_optimise_step'],self.inital_continuumstate_settings['radius_optimise_step']*1e-3)

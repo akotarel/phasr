@@ -18,7 +18,7 @@ import copy
 class boundstates():
     def __init__(self,nucleus,kappa,lepton_mass,
                  bindingenergy_limit_lower=None, bindingenergy_limit_upper=0.,
-                 included_corrections=None, **args):
+                **args):
         
         self.name = nucleus.name
         self.nucleus_type = nucleus.nucleus_type
@@ -38,8 +38,8 @@ class boundstates():
         self.update_solver_setting()
         
         self.nucleus = nucleus
-        if included_corrections is not None:
-            self.corrected_potential=potential_corrections(nucleus,included_corrections=included_corrections)
+        if "corrected_potential" in args:
+            self.corrected_potential=args["corrected_potential"]
             self.potential=self.corrected_potential.corrected_potential
             self.Vmin = self.potential(0)
         else:
