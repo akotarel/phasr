@@ -62,7 +62,6 @@ class continuumstates():
             if np.all(np.abs(potential_coulomb_diff[r>=rc])<potential_precision):
                 self.inital_continuumstate_settings['critical_radius'] = rc
                 break
-        print("critical radius set to ",self.inital_continuumstate_settings['critical_radius']," fm")
     
     def initialize_beginning_radius(self):
         r=np.arange(self.inital_continuumstate_settings['radius_optimise_step']*1e-3,self.inital_continuumstate_settings['radius_optimise_step'],self.inital_continuumstate_settings['radius_optimise_step']*1e-3)

@@ -415,6 +415,7 @@ def split_based_on_asymptotic_and_p_val(results_dict,qs=[400,580,680,1000],dq=1.
 
 def redo_parallel_fitting(datasets:dict,Z:int,A:int,results_dict,redo_tuples=[], N_processes=cpu_count()-2,**args):
     
+    results_dict = copy.deepcopy(results_dict)
     if MPSentinel.Is_master():    
         
         redo_pairings = []

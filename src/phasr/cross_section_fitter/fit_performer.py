@@ -123,7 +123,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
                 xi_diff = result.x[:initialization.N-1] - params_initial[:initialization.N-1]
                 lum_diff= (result.x[initialization.N-1:] - params_initial[initialization.N-1:])/(params_initial[initialization.N-1:])
 
-                if np.all(np.abs(xi_diff) < xi_diff_convergence_limit) and np.all(np.abs(lum_diff) < xi_diff_convergence_limit):
+                if np.all(np.abs(xi_diff) < xi_diff_convergence_limit) and np.all(np.abs(lum_diff) < 5*xi_diff_convergence_limit):
                     converged=True
                 else:
                     if lum_diff.size>0:
