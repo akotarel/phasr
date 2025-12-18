@@ -21,7 +21,7 @@ from ..dirac_solvers import crosssection_lepton_nucleus_scattering
 
 from .. import nucleus
 
-def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monotonous_decrease_precision=np.inf,xi_diff_convergence_limit=1e-4,numdifftools_step=1.e-4,verbose=True,renew=False,cross_section_args={},**minimizer_args):
+def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monotonous_decrease_precision=np.inf,xi_diff_convergence_limit=1e-4,numdifftools_step=1.e-4,verbose=True,renew=False,cross_section_args={},load_best_fit=True,**minimizer_args):
     ''' **minimzer_args is passed to scipy minimize '''
     # usually: monotonous_decrease_precision=0.04
     # xi_diff_convergence_limit is a deprecated feature and has no effect   
@@ -38,7 +38,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
     visible_keys = ['Z','A','R','N','datasets']
     tracked_keys = list(test_dict.keys())
     
-    if minimizer_args.get('load_best_fit', True):
+    if load_best_fit==True:
         multiple_result_dicts = pickle_load_all_results_dicts_R_N(initialization.Z,initialization.A,initialization.R,initialization.N,settings_dict['datasets'])
         num_saved_fits=len(list(multiple_result_dicts.keys()))
         if num_saved_fits==0:
@@ -60,7 +60,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             loaded_results_dict = list(multiple_result_dicts.values())[0]
     else:
         loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys,verbose=verbose)
-                
+        
 
     def find_luminosity_index(Data_name,Energy,luminosities):
         array_index=0

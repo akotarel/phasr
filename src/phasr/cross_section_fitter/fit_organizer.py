@@ -229,6 +229,8 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                             pairing[0][data_name]['luminosities'] = results_dict[best_key_RN]['luminosities'][data_name]
 
                     redo_pairings.append(pairing)
+
+            N_tasks = len(redo_pairings)
             if N_tasks>0:
                 N_processes = np.min([N_processes,N_tasks])
                 print('Queuing',N_tasks,'tasks that need to be redone, which will be performed over',N_processes,'processes.')
@@ -324,9 +326,14 @@ def fit_runner(datasets:dict,Z,A,R,N,args):
         #print(ai_ini)
     else:
         ai_ini = None
+    if load_best_fit in args:
+        load_best_fit= args['load_best_fit']
+        args.pop('load_best_fit')
+    else:
+        load_best_fit=True
 
     initialization = initializer(Z,A,R,N,datasets,ai=ai_ini,initialize_from=initialize_from)
-    result = fitter(datasets,initialization,**args)
+    result = fitter(datasets,initialization,load_best_fit=load_best_fit,**args)
     print("Finished fit with R="+str(R)+", N="+str(N)+" (PID:"+str(os.getpid())+")")
     return result
 
