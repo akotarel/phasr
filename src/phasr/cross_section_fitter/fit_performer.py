@@ -15,7 +15,7 @@ from .statistical_measures import minimization_measures
 from .fit_initializer import initializer
 from .parameters import parameter_set
 from .data_prepper import load_dataset, load_barrett_moment
-from .pickler import pickle_load_result_dict, pickle_dump_result_dict
+from .pickler import pickle_load_all_results_dicts_R_N, pickle_load_result_dict, pickle_dump_result_dict
 
 from ..dirac_solvers import crosssection_lepton_nucleus_scattering
 
@@ -38,7 +38,29 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
     visible_keys = ['Z','A','R','N','datasets']
     tracked_keys = list(test_dict.keys())
     
-    loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys)
+    if minimizer_args.get('load_best_fit', True):
+        multiple_result_dicts = pickle_load_all_results_dicts_R_N(initialization.Z,initialization.A,initialization.R,initialization.N,settings_dict['datasets'])
+        num_saved_fits=len(list(multiple_result_dicts.keys()))
+        if num_saved_fits==0:
+            print('No saved fit with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+')')
+            loaded_results_dict = None
+        elif num_saved_fits>1:
+            print('Multiple saved fits with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+').')
+            best_redchisq = np.inf
+            best_key = None
+            for key in multiple_result_dicts:
+                redchisq=multiple_result_dicts[key].get('redchisq',np.inf)
+                if redchisq < best_redchisq:
+                    best_redchisq=redchisq
+                    best_key=key
+            print('Chosen fit with redchisq =',best_redchisq, '(R='+str(initialization.R)+',N='+str(initialization.N)+').')
+            loaded_results_dict = multiple_result_dicts[best_key]
+        else:
+            print('Fit with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+').')
+        loaded_results_dict = list(multiple_result_dicts.values())[0]
+    else:
+        loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys,verbose=verbose)
+                
 
     def find_luminosity_index(Data_name,Energy,luminosities):
         array_index=0

@@ -180,7 +180,7 @@ class continuumstates():
         self.update_hyper1f1_coulomb_at_critical_radius()
 
         energy_norm=self.solver_setting.energy_norm
-        def DGL(r,fct): return radial_dirac_eq_norm(r,fct,potential=self.potential.electric_potential,energy=self.energy,mass=self.lepton_mass,kappa=self.kappa,energy_norm=energy_norm,contain=True)  
+        def DGL(r,fct): return radial_dirac_eq_norm(r,fct,potential=self.potential,energy=self.energy,mass=self.lepton_mass,kappa=self.kappa,energy_norm=energy_norm,contain=True)  
         
         beginning_radius_norm = self.solver_setting.beginning_radius_norm
         critical_radius_norm = self.solver_setting.critical_radius_norm

@@ -62,10 +62,10 @@ def pickle_load_result_dict(test_dict,tracked_keys=None,visible_keys=[],verbose=
     else:
         print('File at',path,'not found')
 
-def pickle_load_all_results_dicts_R_N(Z,A,R,N):
+def pickle_load_all_results_dicts_R_N(Z,A,R,N,data_names):
         
-    test_dict={'Z':Z,'A':A,'R':R,'N':N}
-    visible_keys = ['Z','A','R','N']
+    test_dict={'Z':Z,'A':A,'R':R,'N':N,'datasets':data_names}
+    visible_keys = ['Z','A','R','N','datasets']
     
     tracking_str = tracking_str_generator(test_dict,tracked_keys=[],visible_keys=visible_keys)
     path_pattern = local_paths.fit_path + 'fit_result' + tracking_str + '*.pkl'

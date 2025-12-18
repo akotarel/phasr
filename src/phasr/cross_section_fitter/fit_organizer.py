@@ -1,3 +1,4 @@
+from phasr.cross_section_fitter.parameters import parameter_set
 from ..config import local_paths
 
 from .. import constants
@@ -56,7 +57,7 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
 
             for j in range(len(pairings)):
                 
-                pairing = pairings[j]
+                pairing = copy.deepcopy(pairings[j])
                 key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4])
                 best_key_RN = key_RN
                 chisq_RN = results_dict[key_RN]['chisq']
@@ -74,11 +75,12 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
                     print('For '+ key_RN +' chi^2 with '+str(best_N_off)+' less parameter is more than 1 permil better:',chisq_RN,'vs',best_chisq_RN)
                     
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
+                    pairing[5]['load_best_fit'] = False
                     for data_name in pairing[0]:
                         if pairing[0][data_name].get('fit_luminosities','n')=='y':
                             pairing[0][data_name]['luminosities'] = results_dict[best_key_RN]['luminosities'][data_name]
 
-                    redo_pairings.append(copy.deepcopy(pairing))
+                    redo_pairings.append(pairing)
                     
             N_tasks = len(redo_pairings)
             
@@ -125,16 +127,17 @@ def parallel_fitting_manual(datasets:dict,Z:int,A:int,RN_tuples=[],redo_N=False,
                         angle=np.arccos( np.dot(vector_1,vector_2) / (np.linalg.norm(vector_1)*np.linalg.norm(vector_2)) )
                         # criterion that the middle point (R1,chisq_R1[1]) has not converged
                         if curvature<0 and angle>10.*np.pi/180:
-                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,args)
+                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,copy.deepcopy(args))
 
                             guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
                             guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
                             pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density,N,R_sample[1]) # get ai's adjusted to new R
+                            pairing[5]['load_best_fit'] = False
                             for data_name in pairing[0]:
                                 if pairing[0][data_name].get('fit_luminosities','n')=='y':
                                     pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN]['luminosities'][data_name]
 
-                            redo_pairings.append(copy.deepcopy(pairing))
+                            redo_pairings.append(pairing)
                             R_list=np.delete(R_list,i) # this point should not be taken into account
                             i-=1
                         i+=1
@@ -202,7 +205,7 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
             redo_pairings = []
             eps_N=1e-3
             for j in range(len(pairings)):
-                pairing = pairings[j]
+                pairing = copy.deepcopy(pairings[j])
                 key_RN = 'R'+str(pairing[3]) + '_N'+str(pairing[4])
                 best_key_RN = key_RN
                 chisq_RN = results_dict[key_RN]['chisq']
@@ -220,13 +223,12 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                     print('For '+ key_RN +' chi^2 with '+str(best_N_off)+' less parameter is more than 1 permil better:',chisq_RN,'vs',best_chisq_RN)
                     
                     pairing[5]['ai_ini'] = results_dict[best_key_RN]['ai']
+                    pairing[5]['load_best_fit'] = False
                     for data_name in pairing[0]:
                         if pairing[0][data_name].get('fit_luminosities','n')=='y':
                             pairing[0][data_name]['luminosities'] = results_dict[best_key_RN]['luminosities'][data_name]
 
-                    redo_pairings.append(copy.deepcopy(pairing))
-
-            N_tasks = len(redo_pairings)
+                    redo_pairings.append(pairing)
             if N_tasks>0:
                 N_processes = np.min([N_processes,N_tasks])
                 print('Queuing',N_tasks,'tasks that need to be redone, which will be performed over',N_processes,'processes.')
@@ -268,16 +270,17 @@ def parallel_fitting_automatic(datasets:dict,Z:int,A:int,Rs=np.arange(5.00,12.00
                         angle=np.arccos( np.dot(vector_1,vector_2) / (np.linalg.norm(vector_1)*np.linalg.norm(vector_2)) )
                         # criterion that the middle point (R1,chisq_R1[1]) has not converged
                         if curvature<0 and angle>10.*np.pi/180:
-                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,args)
+                            pairing= (copy.deepcopy(datasets),Z,A,R_sample[1],N,copy.deepcopy(args))
 
                             guess_key_RN = 'R'+str(R_sample[0]) + '_N'+str(N)
                             guess_nucleus = nucleus('nucleus_guess',Z,A,ai=results_dict[guess_key_RN]['ai'],R=R_sample[0])
                             pairing[5]['ai_ini'] = get_ai_from_charge_density(guess_nucleus.charge_density, N,R_sample[1]) # get ai's adjusted to new R
+                            pairing[5]['load_best_fit'] = False
                             for data_name in pairing[0]:
                                 if pairing[0][data_name].get('fit_luminosities','n')=='y':
                                     pairing[0][data_name]['luminosities'] = results_dict[guess_key_RN]['luminosities'][data_name]
 
-                            redo_pairings.append(copy.deepcopy(pairing))
+                            redo_pairings.append(pairing)
                             R_list=np.delete(R_list,i) # this point should not be taken into account
                             i-=1
                         i+=1
