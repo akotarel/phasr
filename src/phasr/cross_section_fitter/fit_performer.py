@@ -45,7 +45,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             print('No saved fit with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+')')
             loaded_results_dict = None
         elif num_saved_fits>1:
-            print('Multiple saved fits with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+').')
+            print('Multiple saved fits with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+').',num_saved_fits)
             best_redchisq = np.inf
             best_key = None
             for key in multiple_result_dicts:
@@ -57,7 +57,7 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             loaded_results_dict = multiple_result_dicts[best_key]
         else:
             print('Fit with these initial values found (R='+str(initialization.R)+',N='+str(initialization.N)+').')
-        loaded_results_dict = list(multiple_result_dicts.values())[0]
+            loaded_results_dict = list(multiple_result_dicts.values())[0]
     else:
         loaded_results_dict = pickle_load_result_dict(test_dict,tracked_keys,visible_keys,verbose=verbose)
                 
