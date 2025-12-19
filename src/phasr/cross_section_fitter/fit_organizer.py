@@ -326,7 +326,7 @@ def fit_runner(datasets:dict,Z,A,R,N,args):
         #print(ai_ini)
     else:
         ai_ini = None
-    if load_best_fit in args:
+    if 'load_best_fit' in args:
         load_best_fit= args['load_best_fit']
         args.pop('load_best_fit')
     else:
