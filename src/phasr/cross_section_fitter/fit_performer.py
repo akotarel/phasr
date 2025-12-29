@@ -158,6 +158,9 @@ def fitter(datasets:dict,initialization:initializer,barrett_moment_keys=[],monot
             current_nucleus.update_ai(parameters.get_ai())
             update_datasets_with_luminosities(parameters.luminosities)
             rand = 1.0 + np.random.rand()
+        
+        for key in measures:
+            measures[key].set_cov(*adjust_arguements(key)) 
         print('Finished fit (R='+str(current_nucleus.R)+',N='+str(current_nucleus.N_a)+'), Calculating Hessian')
         
         Hessian_function = ndt.Hessian(loss_function,step=numdifftools_step)
