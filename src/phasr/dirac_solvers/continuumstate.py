@@ -27,12 +27,10 @@ class continuumstates():
         
         self.nucleus = nucleus
         if "corrected_potential" in args:
-            self.corrected_potential=args["corrected_potential"]
-            self.potential=self.corrected_potential.corrected_potential
-            self.Vmin = self.potential(0)
+            self.potential=args["corrected_potential"].corrected_potential
         else:
-            self.Vmin = nucleus.Vmin
             self.potential=nucleus.electric_potential
+        self.Vmin = self.potential(0.)
         
         if "energy_norm" in args:
             self.energy_norm=args["energy_norm"]
@@ -64,9 +62,9 @@ class continuumstates():
                 break
     
     def initialize_beginning_radius(self):
-        r=np.arange(self.inital_continuumstate_settings['radius_optimise_step']*1e-3,self.inital_continuumstate_settings['radius_optimise_step'],self.inital_continuumstate_settings['radius_optimise_step']*1e-3)
+        r=np.arange(self.inital_continuumstate_settings['radius_optimise_step']*1e-3,1.,self.inital_continuumstate_settings['radius_optimise_step']*1e-3)
         potential_precision = self.inital_continuumstate_settings['potential_precision']
-        potential_Vmin_diff=(self.nucleus.electric_potential(r)-self.Vmin)/self.Vmin
+        potential_Vmin_diff=(self.potential(r)-self.Vmin)/self.Vmin
         r_Vmin = r[np.abs(potential_Vmin_diff)<potential_precision]
         self.inital_continuumstate_settings['beginning_radius'] = r[0] # default
         for r0 in r_Vmin[::-1]:
@@ -217,25 +215,32 @@ class continuumstates():
         beginning_radius = self.solver_setting.beginning_radius
         critical_radius = self.solver_setting.critical_radius
         
-        initials= initial_values_fm_norm(beginning_radius_fm=beginning_radius,electric_potential_V0=self.Vmin,energy=self.energy,mass=self.lepton_mass,kappa=self.kappa,Z=self.Z,nucleus_type=self.nucleus_type,contain=contain) #,energy_norm=energy_norm
+        initials= initial_values_fm_norm(beginning_radius_fm=beginning_radius,electric_potential_V0=self.potential(self.inital_continuumstate_settings['beginning_radius']),energy=self.energy,mass=self.lepton_mass,kappa=self.kappa,Z=self.Z,nucleus_type=self.nucleus_type,contain=contain) #,energy_norm=energy_norm
         
         #print('y0_0',initials)
-        
         radius_optimise_step = self.solver_setting.radius_optimise_step
-        radii_test = np.arange(beginning_radius,critical_radius+radius_optimise_step,radius_optimise_step)
+    
+        initial_coulomb= convert_to_mp(np.abs(g_coulomb(beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
+        critical_coulomb= convert_to_mp(np.abs(g_coulomb(critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
+
+        if np.abs(critical_coulomb)==np.inf or np.abs(critical_coulomb)==0:
+            for r in np.linspace(critical_radius,beginning_radius,50):
+                critical_coulomb=convert_to_mp(np.abs(g_coulomb(r,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
+                if np.abs(critical_coulomb)<np.inf and critical_coulomb!=0:
+                    break
         
-        coulomb_test = g_coulomb(radii_test,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
-        
-        initial_coulomb=convert_to_mp(np.min(np.abs(coulomb_test[coulomb_test!=0])))
-        critical_coulomb=convert_to_mp(np.max(np.abs(coulomb_test[coulomb_test!=np.inf])))
-        
+        if np.abs(initial_coulomb)==np.inf or np.abs(initial_coulomb)==0:
+            for r in np.linspace(beginning_radius,critical_radius,50):
+                initial_coulomb=convert_to_mp(np.abs(g_coulomb(r,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
+                if np.abs(initial_coulomb)<np.inf and initial_coulomb!=0:
+                    break
         scale_coulomb = float(np.sqrt(np.abs(critical_coulomb)/np.abs(initial_coulomb)))
         #print('scale',scale_coulomb)
         
         initials_scaled=initials/np.abs(initials[0]*scale_coulomb)
         
         if contain:
-            min_lim=1e-50
+            min_lim=1e-200
             if np.any(np.abs(initials_scaled)<min_lim):
                 initials_scaled*=min_lim/np.min(np.abs(initials_scaled))
         
