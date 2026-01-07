@@ -75,7 +75,6 @@ class continuumstates():
     def update_solver_setting(self):
         self.solver_setting = solver_settings(energy_norm=self.energy_norm,**self.inital_continuumstate_settings)
         if self.solver_setting.verbose:
-            print("r0=",self.solver_setting.beginning_radius,"fm")
             print("rc=",self.solver_setting.critical_radius,"fm")
             
     def update_eta_coulomb(self):
@@ -97,6 +96,26 @@ class continuumstates():
         beginning_radius_norm = self.solver_setting.beginning_radius_norm
         critical_radius_norm = self.solver_setting.critical_radius_norm
         
+        ratio=np.inf
+        max_limit=1e200
+        while ratio>max_limit:
+            initial_coulomb= g_coulomb(self.solver_setting.beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
+            critical_coulomb= g_coulomb(self.solver_setting.critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
+            try:
+                ratio=np.abs(critical_coulomb/initial_coulomb)
+            except:
+                ratio=np.inf
+            if ratio<max_limit:
+                break
+            self.solver_setting.beginning_radius*=1.5
+            if self.solver_setting.beginning_radius>self.solver_setting.critical_radius:
+                raise Exception("Could not adjust beginning radius to avoid overflow in wavefunction calculation")
+        
+        if self.solver_setting.verbose:
+            print("r0=",self.solver_setting.beginning_radius,"fm")
+        self.beginning_radius_norm=self.solver_setting.beginning_radius/(constants.hc/self.energy_norm)
+        beginning_radius_norm=self.beginning_radius_norm
+
         self.set_initials(contain=True)
         
         if self.solver_setting.verbose:
@@ -171,7 +190,11 @@ class continuumstates():
 
         self.wavefct_g = wavefct_g
         self.wavefct_f = wavefct_f
-    
+
+        self.phase_difference = phase_difference(critical_radius,self.regular_irregular_fraction,kappa=self.kappa,Z=self.Z,energy=self.energy,mass=self.lepton_mass,
+                                                 pass_eta_regular=self.pass_eta_regular,pass_eta_irregular=self.pass_eta_irregular)
+        self.phase_shift = delta_coulomb(self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular) + self.phase_difference
+    """
     def extract_phase_shift(self):
         
         self.update_eta_coulomb()
@@ -209,7 +232,7 @@ class continuumstates():
         self.phase_difference = phase_difference(critical_radius,self.regular_irregular_fraction,kappa=self.kappa,Z=self.Z,energy=self.energy,mass=self.lepton_mass,
                                                  pass_eta_regular=self.pass_eta_regular,pass_eta_irregular=self.pass_eta_irregular)
         self.phase_shift = delta_coulomb(self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular) + self.phase_difference
-
+    """
     def set_initials(self,contain=False):
         
         beginning_radius = self.solver_setting.beginning_radius
@@ -218,7 +241,6 @@ class continuumstates():
         initials= initial_values_fm_norm(beginning_radius_fm=beginning_radius,electric_potential_V0=self.potential(self.inital_continuumstate_settings['beginning_radius']),energy=self.energy,mass=self.lepton_mass,kappa=self.kappa,Z=self.Z,nucleus_type=self.nucleus_type,contain=contain) #,energy_norm=energy_norm
         
         #print('y0_0',initials)
-        radius_optimise_step = self.solver_setting.radius_optimise_step
     
         initial_coulomb= convert_to_mp(np.abs(g_coulomb(beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
         critical_coulomb= convert_to_mp(np.abs(g_coulomb(critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)))
@@ -240,7 +262,7 @@ class continuumstates():
         initials_scaled=initials/np.abs(initials[0]*scale_coulomb)
         
         if contain:
-            min_lim=1e-200
+            min_lim=1e-50
             if np.any(np.abs(initials_scaled)<min_lim):
                 initials_scaled*=min_lim/np.min(np.abs(initials_scaled))
         
@@ -275,12 +297,12 @@ def regular_irregular_fraction(wavefct_f_radius,wavefct_g_radius,radius,kappa,Z,
     f_coulomb_irregular=f_coulomb(radius,kappa,Z,energy,mass,reg=-1,pass_eta=pass_eta_irregular,pass_hyper1f1=pass_hyper1f1_irregular,dps_hyper1f1=dps_hyper1f1,alpha_el=alpha_el)
     g_coulomb_regular=g_coulomb(radius,kappa,Z,energy,mass,reg=+1,pass_eta=pass_eta_regular,pass_hyper1f1=pass_hyper1f1_regular,dps_hyper1f1=dps_hyper1f1,alpha_el=alpha_el)
     g_coulomb_irregular=g_coulomb(radius,kappa,Z,energy,mass,reg=-1,pass_eta=pass_eta_irregular,pass_hyper1f1=pass_hyper1f1_irregular,dps_hyper1f1=dps_hyper1f1,alpha_el=alpha_el)
-    #
+    
     #print('fr',f_coulomb_regular)
     #print('gr',g_coulomb_regular)
     #print('fi',f_coulomb_irregular)
     #print('gi',g_coulomb_irregular)
-    #
+    
     regular=f_coulomb_irregular - g_coulomb_irregular *(wavefct_f_radius/wavefct_g_radius)
     irregular= f_coulomb_regular - g_coulomb_regular*(wavefct_f_radius/wavefct_g_radius)
     #

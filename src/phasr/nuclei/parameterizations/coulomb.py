@@ -9,6 +9,7 @@ pi = np.pi
 from scipy.special import factorial, gamma
 
 from mpmath import gamma as mp_gamma, arg as mp_arg, fabs as mp_abs, exp as mp_exp, convert as convert_to_mp, sqrt as mp_sqrt
+from mpmath import mpf
 def angle_gamma_large(z):
     return float(mp_arg(mp_gamma(z)))
 
@@ -137,8 +138,9 @@ def g_coulomb(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=None,dps_hyp
         prefactor=(-1)*np.sign(kappa)*np.sqrt(2*(energy+mass)/k)
         
         r=r/constants.hc
-        
-        return prefactor*((2*k*r)**sigma)*(np.exp(pi*y/2))*(np.abs(gamma(sigma+1j*y))/(gamma(2*sigma+1)))*np.real((np.exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1)
+        # To ensure that the numbers don't overflow/underflow, we use mpmath for the calculation
+        # The final result should be within range of float
+        return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1).real)
     else:
         if np.isscalar(r):
             return mp_g_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta,pass_hyper1f1,dps_hyper1f1,alpha_el)
@@ -163,8 +165,9 @@ def f_coulomb(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=None,dps_hyp
         prefactor=np.sign(kappa)*np.sqrt(2*(energy-mass)/k)
         
         r=r/constants.hc
-
-        return prefactor*((2*k*r)**sigma)*(np.exp(pi*y/2))*(np.abs(gamma(sigma+1j*y))/(gamma(2*sigma+1)))*np.imag((np.exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1)
+        # To ensure that the numbers don't overflow/underflow, we use mpmath for the calculation
+        # The final result should be within range of float
+        return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*(mp_exp(-1j*k*r+1j*pass_eta)*(sigma+1j*y)*pass_hyper1f1).imag)
     else:
         if np.isscalar(r):
             return mp_f_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta,pass_hyper1f1,dps_hyper1f1,alpha_el)
@@ -193,7 +196,7 @@ def mp_g_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=No
     
     r=r/constants.hc
     
-    return float(prefactor*((2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*np.real((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1))
+    return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1).real)
 
 mp_g_coulomb =  np.vectorize(mp_g_coulomb_scalar,excluded=[1,2,3,4,5,6,7,8,9])
 
@@ -219,7 +222,7 @@ def mp_f_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=No
     
     r=r/constants.hc
     
-    return float(prefactor*((2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*np.imag((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1))
+    return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1).imag)
     
 mp_f_coulomb =  np.vectorize(mp_f_coulomb_scalar,excluded=[1,2,3,4,5,6,7,8,9])
     
