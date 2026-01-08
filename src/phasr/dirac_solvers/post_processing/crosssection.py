@@ -244,7 +244,8 @@ def recoil_quantities(energy_lab,theta_lab,mass):
 
 def phase_shift_from_partial_wave(nucleus,kappa,energy,lepton_mass,**args):
     partial_wave_kappa = continuumstates(nucleus,kappa,energy,lepton_mass,**args)
-    partial_wave_kappa.extract_phase_shift()
+    partial_wave_kappa.solve_IVP()
+    #partial_wave_kappa.extract_phase_shift()
     return partial_wave_kappa.phase_shift, partial_wave_kappa.phase_difference
 
 def phase_shift_from_partial_wave_wrapper(nucleus,kappa,energy,lepton_mass,save_and_load_phase_shifts=False,verbose=False,**args):
@@ -300,13 +301,6 @@ def collect_phase_shifts_multithreaded(energy,nucleus,lepton_mass,N_partial_wave
     
     if MPSentinel.Is_master():
     
-        # calculate beginning and critical radius only once, since independent on kappa
-        if (not ('beginning_radius' in args)) or (not ('critical_radius' in args)):
-            initializer = continuumstates(nucleus,-1,energy,lepton_mass,**args)
-        if not 'beginning_radius' in args:
-            args['beginning_radius']=initializer.solver_setting.beginning_radius
-        if not 'critical_radius' in args:
-            args['critical_radius']=initializer.solver_setting.critical_radius
 
         pool_counter=0
         kappa_counter=0
@@ -375,13 +369,6 @@ def collect_phase_shifts_singlethreaded(energy,nucleus,lepton_mass,N_partial_wav
     phase_shifts = {}
     phase_differences = {}
     phase_difference_gr0 = True
-    # calculate beginning and critical radius only once, since independent on kappa
-    if (not ('beginning_radius' in args)) or (not ('critical_radius' in args)):
-        initializer = continuumstates(nucleus,-1,energy,lepton_mass,verbose=verbose,**args)
-    if not 'beginning_radius' in args:
-        args['beginning_radius']=initializer.solver_setting.beginning_radius
-    if not 'critical_radius' in args:
-        args['critical_radius']=initializer.solver_setting.critical_radius
 
     for kappa in np.arange(-1,-(N_partial_waves+1+1),-1,dtype=int):
         

@@ -96,18 +96,28 @@ class continuumstates():
         beginning_radius_norm = self.solver_setting.beginning_radius_norm
         critical_radius_norm = self.solver_setting.critical_radius_norm
         
+        # If the wavefunction is too small at the beginning radius, increase it to avoid overflow in the IVP solver
         ratio=np.inf
-        max_limit=1e200
+        max_limit=1e25
+        initial_coulomb= g_coulomb(self.solver_setting.beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
+        critical_coulomb= g_coulomb(self.solver_setting.critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
+        if np.abs(critical_coulomb)==0:
+            print("Warning: Coulomb wavefunction is almost zero at critical radius, this partial wave should be neglected")
         while ratio>max_limit:
             initial_coulomb= g_coulomb(self.solver_setting.beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
-            critical_coulomb= g_coulomb(self.solver_setting.critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
+            #print("initial_coulomb",initial_coulomb)
+            #print("critical_coulomb",critical_coulomb)
+            #print("radius",self.solver_setting.beginning_radius," fm")
             try:
                 ratio=np.abs(critical_coulomb/initial_coulomb)
+                if ratio<max_limit:
+                    break
+                else:
+                    self.solver_setting.beginning_radius*=1.1
             except:
                 ratio=np.inf
-            if ratio<max_limit:
-                break
-            self.solver_setting.beginning_radius*=1.5
+                self.solver_setting.beginning_radius*=2
+            
             if self.solver_setting.beginning_radius>self.solver_setting.critical_radius:
                 raise Exception("Could not adjust beginning radius to avoid overflow in wavefunction calculation")
         
