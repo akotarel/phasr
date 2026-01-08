@@ -28,6 +28,7 @@ class continuumstates():
         self.nucleus = nucleus
         if "corrected_potential" in args:
             self.potential=args["corrected_potential"].corrected_potential
+            args['asymptotic_radius']=5000. # a large value to be sure
         else:
             self.potential=nucleus.electric_potential
         self.Vmin = self.potential(0.)
@@ -51,7 +52,7 @@ class continuumstates():
         self.update_solver_setting()
         
     def initialize_critical_radius(self):
-        r=np.arange(self.inital_continuumstate_settings['radius_optimise_step'],self.inital_continuumstate_settings['asymptotic_radius'],self.inital_continuumstate_settings['radius_optimise_step'])
+        r=np.arange(1.,self.inital_continuumstate_settings['asymptotic_radius'],1.)
         potential_precision = self.inital_continuumstate_settings['potential_precision']
         potential_coulomb_diff=(self.potential(r)-electric_potential_coulomb(r,self.Z))/electric_potential_coulomb(r,self.Z)
         r_coulomb = r[np.abs(potential_coulomb_diff)<potential_precision]
@@ -103,6 +104,10 @@ class continuumstates():
         critical_coulomb= g_coulomb(self.solver_setting.critical_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
         if np.abs(critical_coulomb)==0:
             print("Warning: Coulomb wavefunction is almost zero at critical radius, this partial wave should be neglected")
+            self.phase_difference=0.
+            self.phase_shift = delta_coulomb(self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular) + self.phase_difference
+            return
+
         while ratio>max_limit:
             initial_coulomb= g_coulomb(self.solver_setting.beginning_radius,self.kappa,self.Z,self.energy,self.lepton_mass,reg=+1,pass_eta=self.pass_eta_regular,dps_hyper1f1=self.solver_setting.dps_hyper1f1)
             #print("initial_coulomb",initial_coulomb)

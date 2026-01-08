@@ -47,7 +47,9 @@ def crosssection_lepton_nucleus_scattering_chirality(energy,theta,chirality,weak
     if verbose:
         print('Calculate '+chirality_name+' crosssection ...')
 
-    potential_chiral = partial(custom_chiral_potential,Vch=charge_nucleus.electric_potential,Vw=weak_nucleus.weak_potential,sign=chiral_sign)
+    electric_potential=charge_nucleus.electric_potential if 'corrected_potential_el' not in args else args['corrected_potential_el']
+    weak_potential=weak_nucleus.weak_potential
+    potential_chiral = partial(custom_chiral_potential,Vch=electric_potential,Vw=weak_potential,sign=chiral_sign)
     
     nucleus_chiral = copy.deepcopy(charge_nucleus)
     nucleus_chiral.name += charge_nucleus.name+'_'+weak_nucleus.name+'_'+chirality

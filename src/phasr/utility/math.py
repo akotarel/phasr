@@ -34,7 +34,7 @@ from mpmath import hyper, workdps #confluent hypergeometric function
 # alternative: fp.hyper
 def hyper1f1_scalar_arbitrary_precision(a,b,z,dps=15):
     with workdps(dps):
-        return hyper([a],[b],z)
+        return hyper([a],[b],z,maxterms=50000)
 hyper1f1_vector_z_arbitrary_precision=np.vectorize(hyper1f1_scalar_arbitrary_precision,excluded=[0,1,3])
 hyper1f1_vector_arbitrary_precision=np.vectorize(hyper1f1_scalar_arbitrary_precision,excluded=[3])
 

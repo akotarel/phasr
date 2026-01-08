@@ -298,6 +298,10 @@ def collect_phase_shifts_multithreaded(energy,nucleus,lepton_mass,N_partial_wave
     phase_differences = {}
     phase_difference_gr0 = True
     
+    def on_phase_shift_complete(result, kappa):
+        phase_shift, phase_difference = result
+        print(f"Completed: kappa={kappa}, phase_shift={phase_shift}")
+
     if MPSentinel.Is_master():
     
 
@@ -314,7 +318,12 @@ def collect_phase_shifts_multithreaded(energy,nucleus,lepton_mass,N_partial_wave
             
             if phase_difference_gr0:
                 
-                results_dict[kappa] = pool.apply_async(phase_shift_from_partial_wave_wrapper, args=(nucleus,kappa,energy,lepton_mass), kwds=args)
+                results_dict[kappa] = pool.apply_async(
+                    phase_shift_from_partial_wave_wrapper,
+                    args=(nucleus, kappa, energy, lepton_mass),
+                    kwds=args,
+                    callback=lambda r, k=kappa: on_phase_shift_complete(r, k)
+                )
                 #print('Queued: kappa=',kappa,' , (',pool_counter+1,'/',N_pools,')')
                 pool_counter+=1
                 #phase_shifts[kappa], phase_differences[kappa] = phase_shift_from_partial_wave(nucleus,kappa,energy,lepton_mass,**args) #phase_shift_from_partial_wave(nucleus,kappa,energy,lepton_mass,**args)
@@ -323,7 +332,12 @@ def collect_phase_shifts_multithreaded(energy,nucleus,lepton_mass,N_partial_wave
                     if lepton_mass==0:
                         results_dict[-kappa] = results_dict[kappa]
                     else:
-                        results_dict[-kappa] = pool.apply_async(phase_shift_from_partial_wave_wrapper, args=(nucleus,-kappa,energy,lepton_mass), kwds=args)
+                        results_dict[-kappa] = pool.apply_async(
+                            phase_shift_from_partial_wave_wrapper,
+                            args=(nucleus, -kappa, energy, lepton_mass),
+                            kwds=args,
+                            callback=lambda r, k=-kappa: on_phase_shift_complete(r, k)
+                        )
                         #print('Queued: kappa=',kappa,' , ()',pool_counter+1,'/',N_pools,')')
                         pool_counter+=1
                         #phase_shifts[-kappa], phase_differences[-kappa] = phase_shift_from_partial_wave(nucleus,-kappa,energy,lepton_mass,**args) #phase_shift_from_partial_wave(nucleus,kappa,energy,lepton_mass,**args
