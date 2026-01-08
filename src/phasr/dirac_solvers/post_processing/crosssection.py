@@ -245,7 +245,6 @@ def recoil_quantities(energy_lab,theta_lab,mass):
 def phase_shift_from_partial_wave(nucleus,kappa,energy,lepton_mass,**args):
     partial_wave_kappa = continuumstates(nucleus,kappa,energy,lepton_mass,**args)
     partial_wave_kappa.solve_IVP()
-    #partial_wave_kappa.extract_phase_shift()
     return partial_wave_kappa.phase_shift, partial_wave_kappa.phase_difference
 
 def phase_shift_from_partial_wave_wrapper(nucleus,kappa,energy,lepton_mass,save_and_load_phase_shifts=False,verbose=False,**args):

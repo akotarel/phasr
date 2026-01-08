@@ -140,7 +140,11 @@ def g_coulomb(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=None,dps_hyp
         r=r/constants.hc
         # To ensure that the numbers don't overflow/underflow, we use mpmath for the calculation
         # The final result should be within range of float
-        return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1).real)
+        if np.isscalar(r):
+            return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1).real)
+        else:
+            return np.array([prefactor*(mpf(2*k*r[i])**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*((mp_exp(-1j*k*r[i]+1j*pass_eta))*(sigma+1j*y)*pass_hyper1f1[i]).real for i in range(len(r))])
+        
     else:
         if np.isscalar(r):
             return mp_g_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta,pass_hyper1f1,dps_hyper1f1,alpha_el)
@@ -167,7 +171,10 @@ def f_coulomb(r,kappa,Z,energy,mass,reg,pass_eta=None,pass_hyper1f1=None,dps_hyp
         r=r/constants.hc
         # To ensure that the numbers don't overflow/underflow, we use mpmath for the calculation
         # The final result should be within range of float
-        return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*(mp_exp(-1j*k*r+1j*pass_eta)*(sigma+1j*y)*pass_hyper1f1).imag)
+        if np.isscalar(r):
+            return float(prefactor*(mpf(2*k*r)**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*(mp_exp(-1j*k*r+1j*pass_eta)*(sigma+1j*y)*pass_hyper1f1).imag)
+        else:
+            return np.array([prefactor*(mpf(2*k*r[i])**sigma)*(mp_exp(pi*y/2))*(mp_abs(mp_gamma(sigma+1j*y))/(mp_gamma(2*sigma+1)))*(mp_exp(-1j*k*r[i]+1j*pass_eta)*(sigma+1j*y)*pass_hyper1f1[i]).imag for i in range(len(r))])
     else:
         if np.isscalar(r):
             return mp_f_coulomb_scalar(r,kappa,Z,energy,mass,reg,pass_eta,pass_hyper1f1,dps_hyper1f1,alpha_el)
