@@ -1,0 +1,4 @@
+k 2.2265
+alpha 0.1179
+barrett 17.7914
+dbarrett 0.0072
