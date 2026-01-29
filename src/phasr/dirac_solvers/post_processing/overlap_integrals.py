@@ -5,6 +5,7 @@ from .. import continuumstates
 from ... import masses,constants
 
 from scipy.integrate import quad
+from scipy.misc import derivative
 
 def ejection_energy(initial_lepton_mass,final_lepton_mass,binding_energy,nucleus_mass=np.inf):
     #
@@ -46,6 +47,18 @@ def get_dimfactor(response):
     
     return dimfactor
 
+def nabla_dot(x,f,L):
+    df=derivative(f,x,n=1)
+    d2f=derivative(f,x,n=2)
+    return 1/x**2 *(2*x*df + x**2 * d2f - L*(L+1)*f(x))
+
+def nabla_dot_minus(x,f,L):
+    df=derivative(f,x,n=1)
+    return 1/x*(x*df-L*f(x))
+
+def nabla_dot_plus(x,f,L):
+    df=derivative(f,x,n=1)
+    return 1/x*(x*df+(L+1)*f(x))
 
 def calculate_states(nucleus_potential,kappa_e=-1,recoil=True,nonzero_electron_mass=True,args_boundstate={},args_continuumstate={}):
 

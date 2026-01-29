@@ -14,6 +14,8 @@ from ...utility.math import derivative as deriv
 from ...utility.math import radial_laplace
 
 from functools import partial
+from phasr.physical_constants import masses
+mmu=masses.mmu
 
 class nucleus_num(nucleus_base):
     def __init__(self,name,Z,A,rrange=[0.,20.,0.02], qrange=[0.,1000.,1.], renew=False,**args): #,R_cut=None,rho_cut=None
@@ -194,12 +196,23 @@ class nucleus_num(nucleus_base):
         self.charge_density = fourier_transform_mom_to_pos(self.form_factor,self.name,self.qrange,self.rrange,L=0,norm=self.Z,renew=self.renew)
     
     def set_density_dict_from_form_factor_dict(self):
-        for L in np.arange(0,2*self.spin+1,2,dtype=int):
-            multipoles = [S+str(L)+nuc for S in ['M','Phipp'] for nuc in ['p','n']]
+
+        for L in np.arange(0,2*self.spin+1,dtype=int):
+            if L%2==0:
+                multipoles = [S+str(L)+nuc for S in ['M','Phip','Phipp'] for nuc in ['p','n']]
+            else:
+                multipoles = [S+str(L)+nuc for S in ['Delta','Sigmap','Sigmapp'] for nuc in ['p','n']]
+        
             for multipole in multipoles:
                 if hasattr(self,'F'+multipole):
                     FF = getattr(self,'F'+multipole)
-                    rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,renew=self.renew)
+                    if multipole[0:5]=='Delta':
+                        extra_pow=1
+                    elif multipole[0:7]=='Sigmapp' or multipole[0:6]=='Sigmap':
+                        extra_pow=-1
+                    else:
+                        extra_pow=0
+                    rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
                     setattr(self,'rho'+multipole,rho)
                     # 
                     if L==0:
@@ -214,12 +227,22 @@ class nucleus_num(nucleus_base):
         self.update_dependencies()
 
     def set_form_factor_dict_from_density_dict(self):
-        for L in np.arange(0,2*self.spin+1,2,dtype=int):
-            multipoles = [S+str(L)+nuc for S in ['M','Phipp'] for nuc in ['p','n']]
+        for L in np.arange(0,2*self.spin+1,dtype=int):
+            if L%2==0:
+                multipoles = [S+str(L)+nuc for S in ['M','Phip','Phipp'] for nuc in ['p','n']]
+            else:
+                multipoles = [S+str(L)+nuc for S in ['Delta','Sigmap','Sigmapp'] for nuc in ['p','n']]
+                
             for multipole in multipoles:
                 if hasattr(self,'rho'+multipole):
                     rho = getattr(self,'rho'+multipole)
-                    FF = fourier_transform_pos_to_mom(rho,multipole+'_'+self.name,self.rrange,self.qrange,L=L,norm=1,renew=self.renew)
+                    if multipole[0:5]=='Delta':
+                        extra_pow=1
+                    elif multipole[0:7]=='Sigmapp' or multipole[0:6]=='Sigmap':
+                        extra_pow=-1
+                    else:
+                        extra_pow=0
+                    FF = fourier_transform_pos_to_mom(rho,multipole+'_'+self.name,self.rrange,self.qrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
                     setattr(self,'F'+multipole,FF)
         self.update_dependencies()
     
@@ -271,14 +294,16 @@ def calc_barrett_moment(density,rrange,k_barrett,alpha_barrett,norm):
         barrett = 4*pi*integral_barrett/norm
     return barrett
 
-def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,renew=False):
+def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,extra_pow=0,renew=False):
     # r [fm] -> q [MeV]
     #
     Rs = range_seperator(rrange,fct_r)
     #
     def fct_q_0(q,rho=fct_r):
+        if extra_pow>0 and q==0:
+            q=1e-6 # avoid div by zero
         form_factor_int = quad_seperator(lambda r: (r**2)*rho(r)*spherical_jn(L,q/constants.hc*r),Rs)
-        return 4*pi*form_factor_int/norm
+        return 4*pi*form_factor_int/norm*(mmu/q)**extra_pow
     # vectorize
     fct_q_vec = np.vectorize(fct_q_0)
     # spline
@@ -288,13 +313,13 @@ def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,renew=False
     #
     return fct_q
 
-def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,renew=False):
+def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False):
     # q [MeV] -> r [fm]
     #
     Qs = range_seperator(qrange,fct_q)
     #
     def fct_r_0(r,ff=fct_q): #use Z here b/c total_charge is not known b/c rho is not known
-        rho_int=quad_seperator(lambda q: (q**2)*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,Qs) 
+        rho_int=quad_seperator(lambda q: (q**(2+extra_pow))/mmu**extra_pow*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,Qs) 
         return 4*pi*rho_int*norm/(2*pi)**3
     # vectorize
     fct_r_vec = np.vectorize(fct_r_0)
