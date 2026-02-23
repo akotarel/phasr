@@ -125,38 +125,39 @@ def prepare_results(Z,A,folder_path,name=None,r_cut=None,print_radius_check=Fals
             AI_datasets[AI_model]['type'] = AI_model
         
         # check radii
-        Rn2c = AI_datasets[AI_model]['Rn2c']
-        Rp2c = AI_datasets[AI_model]['Rp2c']
-        Rso2 = AI_datasets[AI_model]['Rso2']
-        Rch2c = r_ch_rpso(Rp2c,Rso2,Z,A)
-        
-        pres_list=[0]
-        if hasattr(atom_AI,'neutron_radius_sq'):
-            rn2c = atom_AI.neutron_radius_sq 
-            pres_n = np.abs(Rn2c-rn2c)/Rn2c
-            pres_list+=[pres_n]
-        if hasattr(atom_AI,'proton_radius_sq'):
-            rp2c = atom_AI.proton_radius_sq  
-            pres_p = np.abs(Rp2c-rp2c)/Rp2c
-            pres_list+=[pres_p]
-        if hasattr(atom_AI,'charge_radius_sq'):        
-            rch2c = atom_AI.charge_radius_sq    
-            pres_ch = np.abs(Rch2c-rch2c)/Rch2c
-            pres_list+=[pres_ch]
-        pres_r2 = np.max(pres_list)
-        
-        # Warns and lists the radii if the differences are above 1e-3
-        if pres_r2>1e-3 or print_radius_check:
-            print(('' if print_radius_check else 'Warning: ')+'Some radii ('+AI_model+') are inconsistent at a level of: {:.1e}'.format(pres_r2))
+        if ('Rn2c' in AI_datasets[AI_model]) and ('Rp2c' in AI_datasets[AI_model]) and ('Rso2' in AI_datasets[AI_model]):
+            Rn2c = AI_datasets[AI_model]['Rn2c']
+            Rp2c = AI_datasets[AI_model]['Rp2c']
+            Rso2 = AI_datasets[AI_model]['Rso2']
+            Rch2c = r_ch_rpso(Rp2c,Rso2,Z,A)
+            
+            pres_list=[0]
             if hasattr(atom_AI,'neutron_radius_sq'):
-                print('rn2  (ref,calc):',Rn2c,rn2c)
+                rn2c = atom_AI.neutron_radius_sq 
+                pres_n = np.abs(Rn2c-rn2c)/Rn2c
+                pres_list+=[pres_n]
             if hasattr(atom_AI,'proton_radius_sq'):
-                print('rp2  (ref,calc):',Rp2c,rp2c)
+                rp2c = atom_AI.proton_radius_sq  
+                pres_p = np.abs(Rp2c-rp2c)/Rp2c
+                pres_list+=[pres_p]
             if hasattr(atom_AI,'charge_radius_sq'):        
-                print('rch2 (ref,calc):',Rch2c,rch2c)
-        else:
-            print('Radii ('+AI_model+') are consistent up to a level of at least: {:.1e}'.format(pres_r2))      
-    
+                rch2c = atom_AI.charge_radius_sq    
+                pres_ch = np.abs(Rch2c-rch2c)/Rch2c
+                pres_list+=[pres_ch]
+            pres_r2 = np.max(pres_list)
+            
+            # Warns and lists the radii if the differences are above 1e-3
+            if pres_r2>1e-3 or print_radius_check:
+                print(('' if print_radius_check else 'Warning: ')+'Some radii ('+AI_model+') are inconsistent at a level of: {:.1e}'.format(pres_r2))
+                if hasattr(atom_AI,'neutron_radius_sq'):
+                    print('rn2  (ref,calc):',Rn2c,rn2c)
+                if hasattr(atom_AI,'proton_radius_sq'):
+                    print('rp2  (ref,calc):',Rp2c,rp2c)
+                if hasattr(atom_AI,'charge_radius_sq'):        
+                    print('rch2 (ref,calc):',Rch2c,rch2c)
+            else:
+                print('Radii ('+AI_model+') are consistent up to a level of at least: {:.1e}'.format(pres_r2))      
+
     return AI_datasets
 
 def CMS_corrected_spline(q,Omega,A,y_data_spl):
