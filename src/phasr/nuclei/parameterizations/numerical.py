@@ -217,7 +217,7 @@ class nucleus_num(nucleus_base):
                     # Necessary when there is a photon propagator
                     rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew)
                     setattr(self,'rhom2'+multipole,rhom2)
-                    rho2=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow+2,renew=self.renew)
+                    rho2=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
                     #if L==0:
                     #rho2_vec  = partial(rho2_correction,rho0=rho)
                     # high energy continuation is very unstable before the high energy of rho sets in, hence we set the cutoff for r>rcrit 
@@ -336,8 +336,8 @@ def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0
     #
     return fct_r
 
-def rho2_correction(r,rho0):
-    return -radial_laplace(rho0)(r)
+#def rho2_correction(r,rho0):
+    #return -radial_laplace(rho0)(r)
 
 def range_seperator(xrange,fct):
     Xmin_int=xrange[0]
