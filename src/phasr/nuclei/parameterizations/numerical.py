@@ -217,14 +217,15 @@ class nucleus_num(nucleus_base):
                     # Necessary when there is a photon propagator
                     rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew)
                     setattr(self,'rhom2'+multipole,rhom2)
-                    rho2=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
+                    rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
+                    setattr(self,'rho2dot'+multipole,rho2dot)
                     #if L==0:
-                    #rho2_vec  = partial(rho2_correction,rho0=rho)
+                    rho2_vec  = partial(rho2_correction,rho0=rho)
                     # high energy continuation is very unstable before the high energy of rho sets in, hence we set the cutoff for r>rcrit 
-                    #rrange_laplace = [self.rrange[0],1.1*self.rrange[1],self.rrange[2]]
-                    #rho2_spl = spline_field(rho2_vec,"charge_density_laplace_"+multipole,self.name,rrange=rrange_laplace,renew=self.renew)
-                    #r_crit = optimise_radius_highenergy_continuation(rho2_spl,1.05*self.rrange[1],1e-3)
-                    #rho2 = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=rho2_spl) # Asymptotic: exp(-r)
+                    rrange_laplace = [self.rrange[0],1.1*self.rrange[1],self.rrange[2]]
+                    rho2_spl = spline_field(rho2_vec,"charge_density_laplace_"+multipole,self.name,rrange=rrange_laplace,renew=self.renew)
+                    r_crit = optimise_radius_highenergy_continuation(rho2_spl,1.05*self.rrange[1],1e-3)
+                    rho2 = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=rho2_spl) # Asymptotic: exp(-r)
                     setattr(self,'rho2'+multipole,rho2)
                     #
         self.update_dependencies()
@@ -336,8 +337,8 @@ def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0
     #
     return fct_r
 
-#def rho2_correction(r,rho0):
-    #return -radial_laplace(rho0)(r)
+def rho2_correction(r,rho0):
+    return -radial_laplace(rho0)(r)
 
 def range_seperator(xrange,fct):
     Xmin_int=xrange[0]

@@ -75,7 +75,7 @@ def calculate_states(nucleus_potential,kappa_e=-1,recoil=True,nonzero_electron_m
 
     return boundstate, continuumstate
 
-
+# Leading responses
 def overlap_integral_scalar(nucleus_potential,response,nucleus_response=None,kappa_e=-1,recoil=True,nonzero_electron_mass=True,**args):
     # response = 'p' , 'n' , 'ch' , 'w', 'rho2M0p', 'rho2M0n', 'rho2Phipp0p', 'rho2Phipp0n'
     
