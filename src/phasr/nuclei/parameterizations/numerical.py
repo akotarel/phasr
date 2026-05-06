@@ -219,6 +219,9 @@ class nucleus_num(nucleus_base):
                     setattr(self,'rhom2'+multipole,rhom2)
                     rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
                     setattr(self,'rho2dot'+multipole,rho2dot)
+                    if multipole[0:7]=='Sigmapp':
+                        rho4dot=fourier_transform_mom_to_pos(FF,multipole+'4'+'_'+self.name,self.qrange,self.rrange,L=L,norm=+1,extra_pow=extra_pow+4,renew=self.renew)
+                        setattr(self,'rho4dot'+multipole,rho4dot)
                     #if L==0:
                     rho2_vec  = partial(rho2_correction,rho0=rho)
                     # high energy continuation is very unstable before the high energy of rho sets in, hence we set the cutoff for r>rcrit 

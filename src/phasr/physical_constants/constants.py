@@ -8,6 +8,7 @@ import numpy as np
 class constants():
     # physical constants
     alpha_el=1./137.035999084
+    hbar=6.582119569e-22 # MeV s
     hc=197.3269804 # MeV fm
     fermi_constant= 1.1663788e-11 #(6) MeV^-2
     sin_sq_theta_weinberg = 0.23129 #(4) PDG value at M_Z in MSbar
