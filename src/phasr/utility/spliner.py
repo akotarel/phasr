@@ -17,7 +17,7 @@ def calc_and_spline(fct,xrange,name,dtype=float,ext=0,renew=False,save=True,verb
     path = local_paths.spline_path + name + "_" + x_str + ".txt"
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+    renew = True
     if os.path.exists(path) and (renew==False or fct is None):
         with open( path, "rb" ) as file:
             xy_data = np.loadtxt( file , dtype=dtype)
