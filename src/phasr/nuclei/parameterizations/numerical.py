@@ -349,7 +349,7 @@ def range_seperator(xrange,fct):
         Xmax_int=xrange[1]
         return np.array([Xmin_int, Xmax_int])
     else:
-        Xmax_int=800.
+        Xmax_int=np.inf
         Xsep_int=xrange[1]
         return np.array([Xmin_int, Xsep_int, Xmax_int])
 
