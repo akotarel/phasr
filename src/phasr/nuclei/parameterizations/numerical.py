@@ -18,12 +18,26 @@ from phasr.physical_constants import masses
 mmu=masses.mmu
 
 class nucleus_num(nucleus_base):
-    def __init__(self,name,Z,A,rrange=[0.,20.,0.02], qrange=[0.,1000.,1.], renew=False,**args): #,R_cut=None,rho_cut=None
+    def __init__(self,name,Z,A,rrange=[0.,20.,0.02], qrange=[0.,1000.,1.],**args): #,R_cut=None,rho_cut=None
         nucleus_base.__init__(self,name,Z,A,**args)
         self.nucleus_type = "numerical"
-        self.rrange=rrange #fm
-        self.qrange=qrange #MeV
-        self.renew=renew # overwrite existing calculations 
+        if 'rrange' in args:
+            self.rrange=args['rrange']
+        else:
+            self.rrange=rrange #fm
+        if 'qrange' in args:
+            self.qrange=args['qrange']
+        else:
+            self.qrange=qrange #MeV
+        if 'rrange_m2' in args:
+            self.rrange_m2=args['rrange_m2']
+        else:
+            self.rrange_m2=self.rrange
+        if 'renew' in args:
+            self.renew=args['renew']
+        else:
+            self.renew=False
+
         
         if 'charge_density' in args:
              self.charge_density =  args['charge_density']
@@ -214,8 +228,13 @@ class nucleus_num(nucleus_base):
                         extra_pow=0
                     rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
                     setattr(self,'rho'+multipole,rho)
-                    # Necessary when there is a photon propagator
-                    rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew)
+                    # Responses for the dipole operator
+                    if multipole[0]=='M' and L==0:
+                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange_m2,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
+                                                           extrapolation_type='inverse')
+                    else:
+                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange_m2,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
+                                                           extrapolation_type='exp')
                     setattr(self,'rhom2'+multipole,rhom2)
                     rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
                     setattr(self,'rho2dot'+multipole,rho2dot)
@@ -320,7 +339,7 @@ def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,extra_pow=0
     #
     return fct_q
 
-def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False):
+def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False,extrapolation_type="exp"):
     # q [MeV] -> r [fm]
     #
     Qs = range_seperator(qrange,fct_q)
@@ -335,7 +354,10 @@ def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0
     #
     r_crit = optimise_radius_highenergy_continuation(fct_r_spl,rrange[1],1e-3) # set xmin to radius
     # highenergy exponential decay for rho
-    fct_r = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=fct_r_spl) # Asymptotic: exp(-r)
+    if extrapolation_type == "exp":
+        fct_r = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=fct_r_spl) # Asymptotic: exp(-r)
+    elif extrapolation_type == "inverse":
+        fct_r = partial(field_ultimate_inverse,R=r_crit,field_spl=fct_r_spl) # Asymptotic: A/r
     #fct_r = partial(field_ultimate_exp,R=rrange[1],val=0,t=0,field_spl=fct_r_spl) # alternative    
     #
     return fct_r
@@ -405,4 +427,41 @@ def field_ultimate_cutoff(r,R,val,field_spl):#  often val=0, also val=np.nan pos
         field[~mask_r] = val
     if np.isscalar(r):
         field=field[0]
+    return field
+
+def field_ultimate_inverse(r,R,field_spl):
+    """
+    High-energy continuation using inverse function form A/r.
+    
+    The constant A is determined to match the function value at the matching point R:
+    A = field_spl(R) * R
+    
+    Parameters
+    ----------
+    r : float or array
+        Radial coordinate in fm
+    R : float
+        Matching radius where spline transitions to inverse form
+    field_spl : callable
+        Splined field function for r <= R
+    
+    Returns
+    -------
+    float or array
+        Field value: spline for r <= R, A/r for r > R
+    """
+    E_crit = field_spl(R)
+    A = E_crit * R  # Adjust A to match value at matching point
+    
+    r_arr = np.atleast_1d(r)
+    field = np.zeros(len(r_arr))
+    mask_r = r_arr <= R
+    
+    if np.any(mask_r):
+        field[mask_r] = field_spl(r_arr[mask_r])
+    if np.any(~mask_r):
+        field[~mask_r] = A / r_arr[~mask_r]
+    
+    if np.isscalar(r):
+        field = field[0]
     return field

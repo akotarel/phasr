@@ -31,7 +31,7 @@ from functools import partial
 # the code of this submodule is fairly specialized to the initial specific use case and should be generalized
 # no guarantied for the contents and reliability of this submodule
 
-def prepare_results(Z,A,folder_path,name=None,r_cut=None,print_radius_check=False): 
+def prepare_results(Z,A,folder_path,name=None,r_cut=None,r_cut_m2=None, q_cutoff=None, renew=False,print_radius_check=False): 
     # the code assumes a folder with two files per (ab-inito) calculation following the naming scheme of name+'.csv' and name+'_FF.csv',
     # containing the relevant scalar parameters and quantities as well as the form factors respectively 
     # 
@@ -106,7 +106,10 @@ def prepare_results(Z,A,folder_path,name=None,r_cut=None,print_radius_check=Fals
     # build atoms & calculate densities 
     for AI_model in AI_datasets:
 
-        kws = {} if r_cut is None else {'rrange' : [0.,r_cut,0.05]}
+        kws = {'renew':renew} 
+        if r_cut is not None: kws['rrange'] = [0,r_cut,0.05]
+        if r_cut_m2 is not None: kws['rrange_m2'] = [0,r_cut_m2,0.05]
+        if q_cutoff is not None: kws['qrange'] = [0,q_cutoff,0.05]
         #kws = {**kws} if q_cut is None else {**kws,'qrange' : [0.,q_cut,1]}
         atom_AI = nucleus(name+"_"+AI_model,Z=Z,A=A,mass=mass_nucleus,spin=spin_nucleus,parity=parity_nucleus,form_factor_dict=AI_datasets[AI_model]['form_factor_dict'],**kws) 
         atom_AI.set_density_dict_from_form_factor_dict()
