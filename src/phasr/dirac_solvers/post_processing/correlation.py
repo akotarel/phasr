@@ -31,7 +31,7 @@ from functools import partial
 # the code of this submodule is fairly specialized to the initial specific use case and should be generalized
 # no guarantied for the contents and reliability of this submodule
 
-def prepare_results(Z,A,folder_path,name=None,r_cut=None,r_cut_m2=None, q_cutoff=None, renew=False,print_radius_check=False): 
+def prepare_results(Z,A,folder_path=None,FF_dict=None,name=None,r_cut=None,r_cut_m2=None, q_cutoff=None, renew=False,print_radius_check=False): 
     # the code assumes a folder with two files per (ab-inito) calculation following the naming scheme of name+'.csv' and name+'_FF.csv',
     # containing the relevant scalar parameters and quantities as well as the form factors respectively 
     # 
@@ -51,57 +51,63 @@ def prepare_results(Z,A,folder_path,name=None,r_cut=None,r_cut_m2=None, q_cutoff
             AI_models.append(file[:-4])
     #
     AI_datasets={}
-    for AI_model in AI_models:
-        path_par=folder_path+AI_model+'.csv'
-        path_FF=folder_path+AI_model+'_FF.csv'
-        with open( path_par, "rb" ) as file:
-            params_array = np.genfromtxt( file,comments=None,skip_header=0,delimiter=',',names=['par','val'],autostrip=True,dtype=['<U10',float])
-        params={param[0]:param[1] for param in params_array}
-        with open( path_FF, "rb" ) as file:
-            FF0 = np.genfromtxt( file,comments=None,delimiter=',',names=True,autostrip=True,dtype=float)
-        AI_datasets[AI_model]={**params,'FF0':FF0}
-    #
-    #
-    print('Loaded datasets:',list(AI_datasets.keys()))
-    # norm correction
-    for AI_model in AI_datasets:
-        FF0=AI_datasets[AI_model]['FF0']
-        formfactors=np.copy(FF0)
-        for key in FF0.dtype.names:
-            try:
-                # this normalization adjustment is specific to the normalization of the data we used 
-                L = int(key[-2])
-                if key[1:6] in ['Sigma','Delta']:
-                    formfactors[key]*=np.sqrt(4*pi/(2*spin_nucleus+1))
-                if L>0: # L=0 are already normalized
-                    if key[1:2] in ['M']:
-                        formfactors[key]*=1/np.sqrt(2*spin_nucleus+1)
-                    if key[1:6] in ['Phipp']:
-                        formfactors[key]*=1/np.sqrt(2*spin_nucleus+1)
-            except IndexError:
-                pass
-        AI_datasets[AI_model]['FF']=formfactors
-    
-    # spline the data
-    for AI_model in AI_datasets:
-        AI_dict={}
-        TCM=AI_datasets[AI_model]['TCM']
-        Omega=TCM*4/3
-        formfactors=AI_datasets[AI_model]['FF']
+    if folder_path is not None:
+        for AI_model in AI_models:
+            path_par=folder_path+AI_model+'.csv'
+            path_FF=folder_path+AI_model+'_FF.csv'
+            with open( path_par, "rb" ) as file:
+                params_array = np.genfromtxt( file,comments=None,skip_header=0,delimiter=',',names=['par','val'],autostrip=True,dtype=['<U10',float])
+            params={param[0]:param[1] for param in params_array}
+            with open( path_FF, "rb" ) as file:
+                FF0 = np.genfromtxt( file,comments=None,delimiter=',',names=True,autostrip=True,dtype=float)
+            AI_datasets[AI_model]={**params,'FF0':FF0}
+        #
+        #
+        print('Loaded datasets:',list(AI_datasets.keys()))
+        # norm correction
+        for AI_model in AI_datasets:
+            FF0=AI_datasets[AI_model]['FF0']
+            formfactors=np.copy(FF0)
+            for key in FF0.dtype.names:
+                try:
+                    # this normalization adjustment is specific to the normalization of the data we used 
+                    L = int(key[-2])
+                    if key[1:6] in ['Sigma','Delta']:
+                        formfactors[key]*=np.sqrt(4*pi/(2*spin_nucleus+1))
+                    if L>0: # L=0 are already normalized
+                        if key[1:2] in ['M']:
+                            formfactors[key]*=1/np.sqrt(2*spin_nucleus+1)
+                        if key[1:6] in ['Phipp']:
+                            formfactors[key]*=1/np.sqrt(2*spin_nucleus+1)
+                except IndexError:
+                    pass
+            AI_datasets[AI_model]['FF']=formfactors
         
-        multipoles_keys = list(formfactors.dtype.names)
-        multipoles_keys.remove('q')
-        x_data=formfactors['q']
+        # spline the data
+        for AI_model in AI_datasets:
+            AI_dict={}
+            TCM=AI_datasets[AI_model]['TCM']
+            Omega=TCM*4/3
+            formfactors=AI_datasets[AI_model]['FF']
+            
+            multipoles_keys = list(formfactors.dtype.names)
+            multipoles_keys.remove('q')
+            x_data=formfactors['q']
 
-        # spline and add CMS corrections (form factors need to be corrected for center of mass effects)
-        for key in multipoles_keys:
-            y_data = formfactors[key]
-            y_data_spl = splrep(x_data,y_data,s=0)
-            form_factor_spl = partial(CMS_corrected_spline,Omega=Omega,A=A,y_data_spl=y_data_spl)
-            form_factor =  partial(field_ultimate_cutoff,R=np.max(x_data),val=0,field_spl=form_factor_spl) # Asymptotic: cutoff to 0
-            AI_dict[key] = form_factor
-        
-        AI_datasets[AI_model]['form_factor_dict']=AI_dict
+            # spline and add CMS corrections (form factors need to be corrected for center of mass effects)
+            for key in multipoles_keys:
+                y_data = formfactors[key]
+                y_data_spl = splrep(x_data,y_data,s=0)
+                form_factor_spl = partial(CMS_corrected_spline,Omega=Omega,A=A,y_data_spl=y_data_spl)
+                form_factor =  partial(field_ultimate_cutoff,R=np.max(x_data),val=0,field_spl=form_factor_spl) # Asymptotic: cutoff to 0
+                AI_dict[key] = form_factor
+            AI_datasets[AI_model]['form_factor_dict']=AI_dict
+
+    if FF_dict is not None:
+        for AI_model in FF_dict:
+            AI_datasets[AI_model]={}
+            AI_datasets[AI_model]['form_factor_dict']=FF_dict[AI_model]
+    
 
     # build atoms & calculate densities 
     for AI_model in AI_datasets:
