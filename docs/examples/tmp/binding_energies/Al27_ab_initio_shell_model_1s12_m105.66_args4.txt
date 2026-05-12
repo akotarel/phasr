@@ -1,0 +1,2 @@
+# {'beginning_radius_norm': 1e-06, 'beginning_radius': np.float64(nan), 'critical_radius_norm': 0.3, 'critical_radius': np.float64(nan), 'asymptotic_radius_norm': 1, 'asymptotic_radius': np.float64(nan), 'radius_optimise_step_norm': 0.01, 'radius_optimise_step': np.float64(nan), 'energy_precision_norm': 1e-06, 'energy_precision': np.float64(nan), 'energy_subdivisions': 100, 'potential_precision': 1e-06, 'atol': 1e-12, 'rtol': 1e-09, 'method': 'DOP853'} (scalar)
+-inf

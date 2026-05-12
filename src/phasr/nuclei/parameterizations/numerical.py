@@ -342,7 +342,7 @@ def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,extra_pow=0
 def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False,extrapolation_type="exp"):
     # q [MeV] -> r [fm]
     #
-    Qs = range_seperator(qrange,fct_q)
+    Qs = np.arange(0.,qrange[1],100.)
     #
     def fct_r_0(r,ff=fct_q): #use Z here b/c total_charge is not known b/c rho is not known
         rho_int=quad_seperator(lambda q: (q**(2+extra_pow))/mmu**extra_pow*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,Qs) 
