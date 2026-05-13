@@ -21,18 +21,11 @@ class nucleus_num(nucleus_base):
     def __init__(self,name,Z,A,rrange=[0.,20.,0.02], qrange=[0.,1000.,1.],**args): #,R_cut=None,rho_cut=None
         nucleus_base.__init__(self,name,Z,A,**args)
         self.nucleus_type = "numerical"
-        if 'rrange' in args:
-            self.rrange=args['rrange']
-        else:
-            self.rrange=rrange #fm
-        if 'qrange' in args:
-            self.qrange=args['qrange']
-        else:
-            self.qrange=qrange #MeV
-        if 'rrange_m2' in args:
-            self.rrange_m2=args['rrange_m2']
-        else:
-            self.rrange_m2=self.rrange
+        if 'r_cut' in args:
+            self.r_cut=args['r_cut']
+            self.rrange=[0.,self.r_cut['M0p'],0.05]
+        if 'q_cutoff' in args:
+            self.q_cutoff=args['q_cutoff']
         if 'renew' in args:
             self.renew=args['renew']
         else:
@@ -226,20 +219,25 @@ class nucleus_num(nucleus_base):
                         extra_pow=-1
                     else:
                         extra_pow=0
-                    rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,self.qrange,self.rrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
+                    rrange=[0.,self.r_cut[multipole],0.05]
+                    if multipole in self.q_cutoff:
+                        qrange=np.arange(0.,self.q_cutoff[multipole],50.)
+                    else:
+                        qrange=np.arange(0.,4000.,50.)  # Default q-range
+                    rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
                     setattr(self,'rho'+multipole,rho)
                     # Responses for the dipole operator
                     if multipole[0]=='M' and L==0:
-                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange_m2,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
+                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
                                                            extrapolation_type='inverse')
                     else:
-                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,self.qrange,self.rrange_m2,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
+                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
                                                            extrapolation_type='exp')
                     setattr(self,'rhom2'+multipole,rhom2)
-                    rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,self.qrange,self.rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
+                    rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,qrange,rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
                     setattr(self,'rho2dot'+multipole,rho2dot)
                     if multipole[0:7]=='Sigmapp':
-                        rho4dot=fourier_transform_mom_to_pos(FF,multipole+'4'+'_'+self.name,self.qrange,self.rrange,L=L,norm=+1,extra_pow=extra_pow+4,renew=self.renew)
+                        rho4dot=fourier_transform_mom_to_pos(FF,multipole+'4'+'_'+self.name,qrange,rrange,L=L,norm=+1,extra_pow=extra_pow+4,renew=self.renew)
                         setattr(self,'rho4dot'+multipole,rho4dot)
                     #if L==0:
                     rho2_vec  = partial(rho2_correction,rho0=rho)
@@ -340,12 +338,9 @@ def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,extra_pow=0
     return fct_q
 
 def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False,extrapolation_type="exp"):
-    # q [MeV] -> r [fm]
-    #
-    Qs = np.arange(0.,qrange[1],100.)
-    #
+
     def fct_r_0(r,ff=fct_q): #use Z here b/c total_charge is not known b/c rho is not known
-        rho_int=quad_seperator(lambda q: (q**(2+extra_pow))/mmu**extra_pow*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,Qs) 
+        rho_int=quad_seperator(lambda q: (q**(2+extra_pow))/mmu**extra_pow*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,qrange) 
         return 4*pi*rho_int*norm/(2*pi)**3
     # vectorize
     fct_r_vec = np.vectorize(fct_r_0)

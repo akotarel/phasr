@@ -113,10 +113,9 @@ def prepare_results(Z,A,folder_path=None,FF_dict=None,name=None,r_cut=None,r_cut
     for AI_model in AI_datasets:
 
         kws = {'renew':renew} 
-        if r_cut is not None: kws['rrange'] = [0,r_cut,0.05]
-        if r_cut_m2 is not None: kws['rrange_m2'] = [0,r_cut_m2,0.05]
-        if q_cutoff is not None: kws['qrange'] = [0,q_cutoff,0.05]
-        #kws = {**kws} if q_cut is None else {**kws,'qrange' : [0.,q_cut,1]}
+        if r_cut is not None: kws['r_cut'] = r_cut
+        if q_cutoff is not None: kws['q_cutoff'] = q_cutoff
+
         atom_AI = nucleus(name+"_"+AI_model,Z=Z,A=A,mass=mass_nucleus,spin=spin_nucleus,parity=parity_nucleus,form_factor_dict=AI_datasets[AI_model]['form_factor_dict'],**kws) 
         atom_AI.set_density_dict_from_form_factor_dict()
         atom_AI.set_scalars_from_rho()
