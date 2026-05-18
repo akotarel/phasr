@@ -209,7 +209,6 @@ class nucleus_num(nucleus_base):
                 multipoles = [S+str(L)+nuc for S in ['M','Phip','Phipp'] for nuc in ['p','n']]
             else:
                 multipoles = [S+str(L)+nuc for S in ['Delta','Sigmap','Sigmapp'] for nuc in ['p','n']]
-        
             for multipole in multipoles:
                 if hasattr(self,'F'+multipole):
                     FF = getattr(self,'F'+multipole)
