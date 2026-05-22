@@ -31,7 +31,7 @@ from functools import partial
 # the code of this submodule is fairly specialized to the initial specific use case and should be generalized
 # no guarantied for the contents and reliability of this submodule
 
-def prepare_results(Z,A,folder_path=None,FF_dict=None,name=None,r_cut=None,r_cut_m2=None, q_cutoff=None, renew=False,print_radius_check=False): 
+def prepare_results(Z,A,folder_path=None,FF_dict=None,name=None,r_cut=None,r_cut_m2=None, q_cutoff=None, extrapolation_selector=None, renew=False,print_radius_check=False): 
     # the code assumes a folder with two files per (ab-inito) calculation following the naming scheme of name+'.csv' and name+'_FF.csv',
     # containing the relevant scalar parameters and quantities as well as the form factors respectively 
     # 
@@ -116,7 +116,8 @@ def prepare_results(Z,A,folder_path=None,FF_dict=None,name=None,r_cut=None,r_cut
         if r_cut is not None: kws['r_cut'] = r_cut
         if q_cutoff is not None: kws['q_cutoff'] = q_cutoff
 
-        atom_AI = nucleus(name+"_"+AI_model,Z=Z,A=A,mass=mass_nucleus,spin=spin_nucleus,parity=parity_nucleus,form_factor_dict=AI_datasets[AI_model]['form_factor_dict'],**kws) 
+        atom_AI = nucleus(name+"_"+AI_model,Z=Z,A=A,mass=mass_nucleus,spin=spin_nucleus,parity=parity_nucleus,form_factor_dict=AI_datasets[AI_model]['form_factor_dict'],**kws)
+        atom_AI.extrapolation_selector = extrapolation_selector
         atom_AI.set_density_dict_from_form_factor_dict()
         atom_AI.set_scalars_from_rho()
         if hasattr(atom_AI,'form_factor') or hasattr(atom_AI,'charge_denstiy'):

@@ -10,6 +10,15 @@ def highenergy_continuation_exp(s,scrit,val_crit,deriv_crit,limit,t=0):
     phase = limit + (val_crit-limit + (deriv_crit + (val_crit-limit)/Tslope(t,val_crit,deriv_crit,limit))*(s-scrit))*np.exp(-(s-scrit)/T)
     return phase
 
+def highenergy_continuation_exp2(s,scrit,val_crit,deriv_crit,limit):
+    """ goes like f0*e^(-s^2/a^2) """
+    val_crit = val_crit - limit 
+    a=np.sqrt(-2*val_crit*scrit/deriv_crit)
+    f0= val_crit*np.exp(scrit**2/a**2)
+    
+    function = limit + f0*np.exp(-s**2/a**2)
+    return function
+
 def highenergy_continuation_poly(s,scrit,val_crit,limit,n=1):
     """ goes like 1/s^n """
     return limit - scrit**n * (limit-val_crit)/s**n

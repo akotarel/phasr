@@ -8,7 +8,7 @@ from scipy.integrate import quad
 from scipy.special import spherical_jn
 
 from ...utility import calc_and_spline
-from ...utility.continuer import highenergy_continuation_exp, highenergy_continuation_poly
+from ...utility.continuer import highenergy_continuation_exp,highenergy_continuation_exp2, highenergy_continuation_poly
 from ...utility.math import optimise_radius_highenergy_continuation
 from ...utility.math import derivative as deriv
 from ...utility.math import radial_laplace
@@ -206,47 +206,90 @@ class nucleus_num(nucleus_base):
 
         for L in np.arange(0,2*self.spin+1,dtype=int):
             if L%2==0:
-                multipoles = [S+str(L)+nuc for S in ['M','Phip','Phipp'] for nuc in ['p','n']]
+                responses = ['M','Phip','Phipp']
             else:
-                multipoles = [S+str(L)+nuc for S in ['Delta','Sigmap','Sigmapp'] for nuc in ['p','n']]
-            for multipole in multipoles:
-                if hasattr(self,'F'+multipole):
-                    FF = getattr(self,'F'+multipole)
-                    if multipole[0:5]=='Delta':
-                        extra_pow=1
-                    elif multipole[0:7]=='Sigmapp' or multipole[0:6]=='Sigmap':
-                        extra_pow=-1
-                    else:
-                        extra_pow=0
-                    rrange=[0.,self.r_cut[multipole],0.05]
-                    if multipole in self.q_cutoff:
-                        qrange=np.arange(0.,self.q_cutoff[multipole],50.)
-                    else:
-                        qrange=np.arange(0.,4000.,50.)  # Default q-range
-                    rho = fourier_transform_mom_to_pos(FF,multipole+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow,renew=self.renew)
-                    setattr(self,'rho'+multipole,rho)
-                    # Responses for the dipole operator
-                    if multipole[0]=='M' and L==0:
-                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
-                                                           extrapolation_type='inverse')
-                    else:
-                        rhom2=fourier_transform_mom_to_pos(FF,multipole+'m2'+'_'+self.name,qrange,rrange,L=L,norm=1,extra_pow=extra_pow-2,renew=self.renew,
-                                                           extrapolation_type='exp')
-                    setattr(self,'rhom2'+multipole,rhom2)
-                    rho2dot=fourier_transform_mom_to_pos(FF,multipole+'2'+'_'+self.name,qrange,rrange,L=L,norm=-1,extra_pow=extra_pow+2,renew=self.renew)
-                    setattr(self,'rho2dot'+multipole,rho2dot)
-                    if multipole[0:7]=='Sigmapp':
-                        rho4dot=fourier_transform_mom_to_pos(FF,multipole+'4'+'_'+self.name,qrange,rrange,L=L,norm=+1,extra_pow=extra_pow+4,renew=self.renew)
-                        setattr(self,'rho4dot'+multipole,rho4dot)
-                    #if L==0:
-                    rho2_vec  = partial(rho2_correction,rho0=rho)
-                    # high energy continuation is very unstable before the high energy of rho sets in, hence we set the cutoff for r>rcrit 
-                    rrange_laplace = [self.rrange[0],1.1*self.rrange[1],self.rrange[2]]
-                    rho2_spl = spline_field(rho2_vec,"charge_density_laplace_"+multipole,self.name,rrange=rrange_laplace,renew=self.renew)
-                    r_crit = optimise_radius_highenergy_continuation(rho2_spl,1.05*self.rrange[1],1e-3)
-                    rho2 = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=rho2_spl) # Asymptotic: exp(-r)
-                    setattr(self,'rho2'+multipole,rho2)
-                    #
+                responses = ['Delta','Sigmap','Sigmapp']
+
+            for response in responses:
+                for nuc in ['p','n']:
+                    multipole=response+str(L)+nuc
+                    if hasattr(self,'F'+multipole):
+                        FF = getattr(self,'F'+multipole)
+                        if response=='Delta':
+                            extra_pow=1
+                        elif response=='Sigmapp' or response=='Sigmap':
+                            extra_pow=-1
+                        else:
+                            extra_pow=0
+                        rrange=[0.,self.r_cut[multipole],0.05]
+                        if multipole in self.q_cutoff:
+                            qrange=np.arange(0.,self.q_cutoff[multipole]+50.,50.)
+                        else:
+                            qrange=np.arange(0.,4000.,50.)  # Default q-range
+                        
+                        extrapolation_dict = self.extrapolation_selector(response=response, L=L, nuc=nuc,derivative='')
+                        rho = fourier_transform_mom_to_pos(
+                            FF,
+                            multipole+'_'+self.name+str(qrange[-1]),
+                            qrange,
+                            rrange,
+                            L=L,
+                            norm=1,
+                            extra_pow=extra_pow,
+                            renew=self.renew,
+                            extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
+                        )
+                        setattr(self,'rho'+multipole,rho)
+                        # Responses for the dipole operator
+                        extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='m2')
+                        rhom2=fourier_transform_mom_to_pos(
+                            FF,
+                            multipole+'m2'+'_'+self.name,
+                            qrange,
+                            rrange,
+                            L=L,
+                            norm=1,
+                            extra_pow=extra_pow-2,
+                            renew=self.renew,
+                            extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
+                        )
+                        setattr(self,'rhom2'+multipole,rhom2)
+                        extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='2dot')
+                        rho2dot=fourier_transform_mom_to_pos(
+                            FF,
+                            multipole+'2'+'_'+self.name,
+                            qrange,
+                            rrange,
+                            L=L,
+                            norm=-1,
+                            extra_pow=extra_pow+2,
+                            renew=self.renew,
+                            extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
+                        )
+                        setattr(self,'rho2dot'+multipole,rho2dot)
+                        extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='4dot')
+                        if response=='Sigmapp':
+                            rho4dot=fourier_transform_mom_to_pos(
+                                FF,
+                                multipole+'4'+'_'+self.name,
+                                qrange,
+                                rrange,
+                                L=L,
+                                norm=+1,
+                                extra_pow=extra_pow+4,
+                                renew=self.renew,
+                                extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
+                            )
+                            setattr(self,'rho4dot'+multipole,rho4dot)
+                        #if L==0:
+                        rho2_vec  = partial(rho2_correction,rho0=rho)
+                        # high energy continuation is very unstable before the high energy of rho sets in, hence we set the cutoff for r>rcrit 
+                        rrange_laplace = [self.rrange[0],1.1*self.rrange[1],self.rrange[2]]
+                        rho2_spl = spline_field(rho2_vec,"charge_density_laplace_"+multipole,self.name,rrange=rrange_laplace,renew=self.renew)
+                        r_crit = optimise_radius_highenergy_continuation(rho2_spl,1.05*self.rrange[1],1e-3)
+                        rho2 = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=rho2_spl) # Asymptotic: exp(-r)
+                        setattr(self,'rho2'+multipole,rho2)
+                        #
         self.update_dependencies()
 
     def set_form_factor_dict_from_density_dict(self):
@@ -336,7 +379,7 @@ def fourier_transform_pos_to_mom(fct_r,name,rrange,qrange,L=0,norm=1,extra_pow=0
     #
     return fct_q
 
-def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False,extrapolation_type="exp"):
+def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0,renew=False,extrapolation_type="exp",extrapolation_pow=-1):
 
     def fct_r_0(r,ff=fct_q): #use Z here b/c total_charge is not known b/c rho is not known
         rho_int=quad_seperator(lambda q: (q**(2+extra_pow))/mmu**extra_pow*ff(q)*spherical_jn(L,r/constants.hc*q)/constants.hc**3,qrange) 
@@ -349,9 +392,9 @@ def fourier_transform_mom_to_pos(fct_q,name,qrange,rrange,L=0,norm=1,extra_pow=0
     r_crit = optimise_radius_highenergy_continuation(fct_r_spl,rrange[1],1e-3) # set xmin to radius
     # highenergy exponential decay for rho
     if extrapolation_type == "exp":
-        fct_r = partial(field_ultimate_exp,R=r_crit,val=0,t=0,field_spl=fct_r_spl) # Asymptotic: exp(-r)
-    elif extrapolation_type == "inverse":
-        fct_r = partial(field_ultimate_inverse,R=r_crit,field_spl=fct_r_spl) # Asymptotic: A/r
+        fct_r = partial(field_ultimate_exp2,R=r_crit,val=0,field_spl=fct_r_spl) # Asymptotic: exp(-r)
+    elif extrapolation_type == "pow":
+        fct_r = partial(field_ultimate_pow,pow=extrapolation_pow,R=r_crit,field_spl=fct_r_spl) # Asymptotic: A*r^pow
     #fct_r = partial(field_ultimate_exp,R=rrange[1],val=0,t=0,field_spl=fct_r_spl) # alternative    
     #
     return fct_r
@@ -411,6 +454,21 @@ def field_ultimate_exp(r,R,val,t,field_spl): # highenergycont_rho, often val=0, 
         field=field[0]
     return field
 
+def field_ultimate_exp2(r,R,val,field_spl): # highenergycont_rho, often val=0, t=0
+    E_crit=field_spl(R)
+    dE=deriv(field_spl,1e-6)
+    dE_crit=dE(R)
+    r_arr = np.atleast_1d(r)
+    field=np.zeros(len(r_arr))
+    mask_r = r_arr<=R
+    if np.any(mask_r):
+        field[mask_r] = field_spl(r_arr[mask_r])
+    if np.any(~mask_r):
+        field[~mask_r] = highenergy_continuation_exp2(r_arr[~mask_r],R,E_crit,dE_crit,val)
+    if np.isscalar(r):
+        field=field[0]
+    return field
+
 def field_ultimate_cutoff(r,R,val,field_spl):#  often val=0, also val=np.nan possible
     r_arr = np.atleast_1d(r)
     field=np.zeros(len(r_arr))
@@ -423,17 +481,15 @@ def field_ultimate_cutoff(r,R,val,field_spl):#  often val=0, also val=np.nan pos
         field=field[0]
     return field
 
-def field_ultimate_inverse(r,R,field_spl):
+def field_ultimate_pow(r,pow,R,field_spl):
     """
-    High-energy continuation using inverse function form A/r.
-    
-    The constant A is determined to match the function value at the matching point R:
-    A = field_spl(R) * R
+    High-energy continuation using function form A*r^pow.
     
     Parameters
     ----------
     r : float or array
         Radial coordinate in fm
+    pow: power of the inverse function
     R : float
         Matching radius where spline transitions to inverse form
     field_spl : callable
@@ -442,10 +498,10 @@ def field_ultimate_inverse(r,R,field_spl):
     Returns
     -------
     float or array
-        Field value: spline for r <= R, A/r for r > R
+        Field value: spline for r <= R, A*r^pow for r > R
     """
     E_crit = field_spl(R)
-    A = E_crit * R  # Adjust A to match value at matching point
+    A = E_crit / R**pow  # Adjust A to match value at matching point
     
     r_arr = np.atleast_1d(r)
     field = np.zeros(len(r_arr))
@@ -454,7 +510,7 @@ def field_ultimate_inverse(r,R,field_spl):
     if np.any(mask_r):
         field[mask_r] = field_spl(r_arr[mask_r])
     if np.any(~mask_r):
-        field[~mask_r] = A / r_arr[~mask_r]
+        field[~mask_r] = A * r_arr[~mask_r]**pow
     
     if np.isscalar(r):
         field = field[0]
