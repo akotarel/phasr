@@ -16,6 +16,7 @@ from ...utility.math import radial_laplace
 from functools import partial
 from phasr.physical_constants import masses
 mmu=masses.mmu
+mpi=(masses.mpipl+masses.mpi0)/2
 
 class nucleus_num(nucleus_base):
     def __init__(self,name,Z,A,rrange=[0.,20.,0.02], qrange=[0.,1000.,1.],**args): #,R_cut=None,rho_cut=None
@@ -232,7 +233,7 @@ class nucleus_num(nucleus_base):
                             FF,
                             multipole+'_'+self.name+str(qrange[-1]),
                             qrange,
-                            rrange,
+                            rrange=[0.,self.r_cut[multipole],0.05],
                             L=L,
                             norm=1,
                             extra_pow=extra_pow,
@@ -244,9 +245,9 @@ class nucleus_num(nucleus_base):
                         extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='m2')
                         rhom2=fourier_transform_mom_to_pos(
                             FF,
-                            multipole+'m2'+'_'+self.name,
+                            multipole+'m2'+'_'+self.name+str(qrange[-1]),
                             qrange,
-                            rrange,
+                            rrange=[0.,self.r_cut[multipole],0.05],
                             L=L,
                             norm=1,
                             extra_pow=extra_pow-2,
@@ -254,12 +255,27 @@ class nucleus_num(nucleus_base):
                             extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
                         )
                         setattr(self,'rhom2'+multipole,rhom2)
+                        if response == 'Sigmapp':
+                            extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='pi')
+                            rhopi=fourier_transform_mom_to_pos(
+                                lambda q: FF(q) * (2*mpi**2)/(q**2+mpi**2), # include 
+                                multipole+'pi'+'_'+self.name+str(qrange[-1]),
+                                qrange,
+                                rrange=[0.,self.r_cut[multipole],0.05],
+                                L=L,
+                                norm=1,
+                                extra_pow=extra_pow,
+                                renew=self.renew,
+                                extrapolation_type=extrapolation_dict['type'],extrapolation_pow=extrapolation_dict['pow']
+                            )
+                            setattr(self,'rhopi'+multipole,rhopi)
+
                         extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='2dot')
                         rho2dot=fourier_transform_mom_to_pos(
                             FF,
-                            multipole+'2'+'_'+self.name,
+                            multipole+'2'+'_'+self.name+str(qrange[-1]),
                             qrange,
-                            rrange,
+                            rrange=[0.,self.r_cut['2dot'+multipole],0.05] if '2dot'+multipole in self.r_cut else [0.,self.r_cut[multipole],0.05],
                             L=L,
                             norm=-1,
                             extra_pow=extra_pow+2,
@@ -273,7 +289,7 @@ class nucleus_num(nucleus_base):
                                 FF,
                                 multipole+'4'+'_'+self.name,
                                 qrange,
-                                rrange,
+                                rrange=[0.,self.r_cut['4dot'+multipole],0.05] if '4dot'+multipole in self.r_cut else [0.,self.r_cut[multipole],0.05],
                                 L=L,
                                 norm=+1,
                                 extra_pow=extra_pow+4,
