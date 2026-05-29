@@ -243,11 +243,13 @@ class nucleus_num(nucleus_base):
                         setattr(self,'rho'+multipole,rho)
                         # Responses for the dipole operator
                         extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='m2')
+                        if 'm2'+multipole not in self.r_cut:
+                            self.r_cut['m2'+multipole]=self.r_cut[multipole]
                         rhom2=fourier_transform_mom_to_pos(
                             FF,
                             multipole+'m2'+'_'+self.name+str(qrange[-1]),
                             qrange,
-                            rrange=[0.,self.r_cut[multipole],0.05],
+                            rrange=[0.,self.r_cut['m2'+multipole],0.05],
                             L=L,
                             norm=1,
                             extra_pow=extra_pow-2,
@@ -257,11 +259,13 @@ class nucleus_num(nucleus_base):
                         setattr(self,'rhom2'+multipole,rhom2)
                         if response == 'Sigmapp':
                             extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='pi')
+                            if 'pi'+multipole not in self.r_cut:
+                                self.r_cut['pi'+multipole]=self.r_cut[multipole]
                             rhopi=fourier_transform_mom_to_pos(
                                 lambda q: FF(q) * (2*mpi**2)/(q**2+mpi**2), # include 
                                 multipole+'pi'+'_'+self.name+str(qrange[-1]),
                                 qrange,
-                                rrange=[0.,self.r_cut[multipole],0.05],
+                                rrange=[0.,self.r_cut['pi'+multipole],0.05],
                                 L=L,
                                 norm=1,
                                 extra_pow=extra_pow,
@@ -271,11 +275,13 @@ class nucleus_num(nucleus_base):
                             setattr(self,'rhopi'+multipole,rhopi)
 
                         extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='2dot')
+                        if '2dot'+multipole not in self.r_cut:
+                            self.r_cut['2dot'+multipole]=self.r_cut[multipole]
                         rho2dot=fourier_transform_mom_to_pos(
                             FF,
                             multipole+'2'+'_'+self.name+str(qrange[-1]),
                             qrange,
-                            rrange=[0.,self.r_cut['2dot'+multipole],0.05] if '2dot'+multipole in self.r_cut else [0.,self.r_cut[multipole],0.05],
+                            rrange=[0.,self.r_cut['2dot'+multipole],0.05],
                             L=L,
                             norm=-1,
                             extra_pow=extra_pow+2,
@@ -285,11 +291,13 @@ class nucleus_num(nucleus_base):
                         setattr(self,'rho2dot'+multipole,rho2dot)
                         extrapolation_dict=self.extrapolation_selector(response=response, L=L, nuc=nuc, derivative='4dot')
                         if response=='Sigmapp':
+                            if '4dot'+multipole not in self.r_cut:
+                                self.r_cut['4dot'+multipole]=self.r_cut[multipole]
                             rho4dot=fourier_transform_mom_to_pos(
                                 FF,
                                 multipole+'4'+'_'+self.name,
                                 qrange,
-                                rrange=[0.,self.r_cut['4dot'+multipole],0.05] if '4dot'+multipole in self.r_cut else [0.,self.r_cut[multipole],0.05],
+                                rrange=[0.,self.r_cut['4dot'+multipole],0.05],
                                 L=L,
                                 norm=+1,
                                 extra_pow=extra_pow+4,
